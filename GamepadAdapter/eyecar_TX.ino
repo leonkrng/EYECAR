@@ -92,20 +92,7 @@ void setupRFM69() {
 }
 void loop() {
         Usb.Task();
-        //Serial.print(Usb.Init());
-        runtime = millis();
-        //wdt_reset();    //Reset Watchdog
-        /**Serial.print(0);
-        Serial.print(" ");
-        Serial.print(300);
-        Serial.print(" ");
-        Serial.print(stickLX);
-        Serial.print(" ");
-        Serial.print(stickLY);
-        Serial.print(" ");
-        Serial.print(stickRX);
-        Serial.print(" ");
-        Serial.println(stickRY);**/
+        runtime = millis();      
         
         if(runtime > 1100) {                    //1,1 Sekunden nach Start und Gamepad aktiviert alle Werte initalisieren
           if(initWerte) {
