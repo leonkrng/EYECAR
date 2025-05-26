@@ -9,8 +9,13 @@ from gpiozero import CPUTemperature
 import serial
 import numpy as np
 import time
-
 import cv2
+
+from aruco_navigation.webcam_video_stream import WebcamVideoStream
+from aruco_navigation.find_aruco_markers import find_aruco_markers
+from aruco_navigation.marker_visualization import marker_visualization 
+from aruco_navigation.navigation import navigation
+from communication.serial_input import SerialInput
 
 # 0: Ende der Navigationsliste erreicht. Nicht mehr bewegen
 # 1: kein relevanten Marker erkannt
@@ -37,184 +42,9 @@ errorCar = 0
 command = -1
 textToSend = "0"
 splitString = ["-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1","-1"]
-#Die folgende Klasse ist für das Einlesen der Kameraframes da
-class WebcamVideoStream:
-    def __init__(self, src=1):
-        # initialize the video camera stream and read the first frame
-        # from the stream
-        #832x624
-        #640480
-        #960x640
-        #self repräsentiert die Referenz zum aktuell erzeugten Objekt! 
-        #Es werden bei der Initialisierung also die Attribute des gerade erzeugten Objektes beschrieben.
-        self.cap = cv2.VideoCapture(src)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 832)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,576 )
-        (self.grabbed, self.frame) = self.cap.read()
-        # initialize the variable used to indicate if the thread should
-        # be stopped
-        self.stopped = False
-
-        
-    def start(self):
-        # start the thread to read frames from the video cap
-        Thread(target=self.update, args=()).start()
-        return self
-    def update(self):
-        # keep looping infinitely until the thread is stopped
-        while True:
-            # if the thread indicator variable is set, stop the thread
-            if self.stopped:
-                return
-            # otherwise, read the next frame from the stream
-        
-            (self.grabbed, self.frame) = self.cap.read()
-            
-    def read(self):
-        # return the frame most recently read
-        return self.frame
-    def stop(self):
-        # indicate that the thread should be stopped
-        self.stopped = True
-
-####### Die Funktion erkennt anhand des Kamera Frames den Aruco Marker und gibt die Ecken und ID's zurueck ############
-def findArucoMarkers(img, markerSize =5 , totalMarkers=50, draw=True):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    key= getattr(aruco, f'DICT_{markerSize}X{markerSize}_{totalMarkers}')
-    arucoDict = aruco.Dictionary_get(key)
-    arucoParam = aruco.DetectorParameters_create()
-    (corners, ids, rejected) = aruco.detectMarkers(gray, arucoDict, parameters = arucoParam)
-
-# drawing markers bounding box and centre + calculate marker position for EYE-Car moving command ################
-def markerVisualization(corners, ids, n):
-    # loop over the detected ArUCo corners
-    for markerCorner in corners[n]:
-        # extract the marker corners (which are always returned
-        # in top-left, top-right, bottom-right, and bottom-left
-        # order)
-        corners = markerCorner.reshape((4, 2))
-        (topLeft, topRight, bottomRight, bottomLeft) = corners
-        # convert each of the (x, y)-coordinate pairs to integers
-        topRight = (int(topRight[0]), int(topRight[1]))
-        bottomRight = (int(bottomRight[0]), int(bottomRight[1]))
-        bottomLeft = (int(bottomLeft[0]), int(bottomLeft[1]))
-        topLeft = (int(topLeft[0]), int(topLeft[1]))
-        # draw the bounding box of the ArUCo detection
-        cv2.line(frame, topLeft, topRight, (0, 255, 0), 2)
-        cv2.line(frame, topRight, bottomRight, (0, 255, 0), 2)
-        cv2.line(frame, bottomRight, bottomLeft, (0, 255, 0), 2)
-        cv2.line(frame, bottomLeft, topLeft, (0, 255, 0), 2)
-        # draw the ArUco marker ID on the frame
-        #print(str(ids[n][0]))
-        cv2.putText(frame, str(ids[n][0]),
-            (topLeft[0], topLeft[1] - 15),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1, (0, 255, 0), 3)
-        # compute and draw the center (x, y)-coordinates of the ArUco marker
-        cX = int((topLeft[0] + bottomRight[0]) / 2.0)
-        cY = int((topLeft[1] + bottomRight[1]) / 2.0)
-        cv2.circle(frame, (cX, cY), 4, (0, 0, 255), -1)
-        #compute length of all marker sides														    	 	#	(x0/y0)         (x1/y1)
-        aLen = pow(pow(topLeft[0] - topRight[0], 2) + pow(topLeft[1] - topRight[1], 2), 0.5)				#         # # # a # # #
-        bLen = pow(pow(bottomRight[0] - topRight[0], 2) + pow(bottomRight[1] - topRight[1], 2), 0.5)		#         #           #
-        cLen = pow(pow(bottomRight[0] - bottomLeft[0], 2) + pow(bottomRight[1] - bottomLeft[1], 2), 0.5)	#         d   ArUco   b
-        dLen = pow(pow(bottomLeft[0] - topLeft[0], 2) + pow(bottomLeft[1] - topLeft[1], 2), 0.5)			#         #           #
-        diag02 = pow(pow(bottomRight[0] - topLeft[0], 2) + pow(bottomRight[1] - topLeft[1], 2), 0.5)		#         # # # c # # #
-        diag13 = pow(pow(topRight[0] - bottomLeft[0], 2) + pow(topRight[1] - bottomLeft[1], 2), 0.5)		#    (x3/y3)         (x2/y2)
-    return cX, cY, diag02, diag13
 
 
-####### Navigations-Funktion kann evtl für die Ausrichtung bei der Objekterkennung verwendet werden ##########
-def navigation(cX, diag02, diag13, relationX, actualID, *resolution):
-    # draw frame where EYE-Car drives forward
-    centerFrameLeft = int(resolution[0][0]*0.4)
-    centerFrameRight = int(resolution[0][0]*0.6)
-    cv2.line(frame, [centerFrameLeft, int(resolution[0][1]*0.3)], [centerFrameLeft ,int(resolution[0][1]*0.7)], (0, 0, 255), 1)
-    cv2.line(frame, [centerFrameRight, int(resolution[0][1]*0.3)], [centerFrameRight ,int(resolution[0][1]*0.7)], (0, 0, 255), 1)
-    # align EYE-Car
-    maxSize = relationX * resolution[0][0]
-    moveCommand = 1					# 1: kein relevanten Marker erkannt
-    if 1:
-        if cX < centerFrameLeft:
-            moveCommand = 4			# 4: Fahrzeug nach links ausrichten
-        elif cX > centerFrameLeft and cX < centerFrameRight:
-            moveCommand = 3			# 3: Fahrzeug vorwärts bewegen
-        elif cX > centerFrameRight:
-            moveCommand = 2			# 2: Fahrzeug nach rechts ausrichten
-        if diag02 > maxSize or diag13 > maxSize:
-            moveCommand = 5			# 5: nächsten Marker suchen
-    elif diag02 > maxSize or diag13 > maxSize:
-        moveCommand = 6				# 6: zu nah am Marker. Nicht mehr bewegen
-    else:
-        moveCommand = 1				# 1: kein relevanten Marker erkannt
-    return moveCommand
-
-
-
-
-class SerialInput:
-    def __init__(self):
-        self.ser = serial.Serial('/dev/ttyAMA0',
-                                 baudrate=115200,
-                                 bytesize=8,
-                                 timeout=50,
-                                 xonxoff=False,
-                                 rtscts=False,
-                                 dsrdtr=False)
-        self.stopped = False
-    
-    def start(self):
-        # start the thread to read frames from the video cap
-        Thread(target=self.readSerialInput, args=()).start()
-        Thread(target=self.sendSerialOutput, args=()).start()
-        return self
-    
-    def sendSerialOutput(self):
-        msg = 1 
-        while True:
-            try:
-                
-                if self.ser.out_waiting == 0:
-                    self.ser.write(textToSend.encode('utf-8'))
-                #self.ser.write('cool\r\n'.encode('utf-8'))
-                else:
-                    false
-                    #print(self.ser.out_waiting)
-                time.sleep(0.1)
-            except:
-                if msg:
-                    print("errorSendSerialOutput")
-                    msg = 0
-    
-    def readSerialInput(self):    
-        
-        
-        global splitString
-        #self.ser.flush()
-        #self.ser.reset_input_buffer()
-        while True:
-            if self.stopped:
-                return
-            serialInputString = str(self.ser.readline())
-            #print(serialInputString)
-            #val=serialInputString
-            
-            if len(serialInputString) > 2:   
-                try:
-                    splitString = serialInputString.split("/")
-                    
-                except:
-                    val="splitfail"
-            #cv2.putText(img=frame, text=str(text), org=(50, 50), fontFace=cv2.FONT_HERSHEY_TRIPLEX, fontScale=1, color=(0, 255, 0),thickness=1)
-            
-           
-            
-            #print(text)
-    def stop(self):
-        # indicate that the thread should be stopped
-        self.stopped = True
-        self.ser.close()
-# construct the argument parse and parse the arguments
+#construct the argument parse and parse the arguments
 #ap = argparse.ArgumentParser()
 #ap.add_argument("-n", "--num-frames", type=int, default=500
 #help="# of frames to loop over for FPS test")
@@ -257,7 +87,7 @@ while 1:
         #print("n: "+str(n))
         #print("ids[n]:"+str(ids[n]))
         #ids = ids.flatten()
-        cX, cY, diag02, diag13 = markerVisualization(corners, ids, n)		# Visualisierung des Markers und Berechnung der markanten Längen
+        cX, cY, diag02, diag13 = marker_visualization(corners, ids, n)		# Visualisierung des Markers und Berechnung der markanten Längen
         if prevArucoNavigationAktiv and ids[n][0] == naviList[actualID]:
             cv2.line(frame, (416,312), (cX, cY), (0, 0, 255), 2)
             
