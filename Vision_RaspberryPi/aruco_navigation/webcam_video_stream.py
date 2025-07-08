@@ -1,7 +1,6 @@
 from threading import Thread
 import cv2
 
-#Die folgende Klasse ist für das Einlesen der Kameraframes da
 class WebcamVideoStream:
     def __init__(self, src=1):
         # initialize the video camera stream and read the first frame
@@ -9,7 +8,6 @@ class WebcamVideoStream:
         #832x624
         #640480
         #960x640
-        #self repräsentiert die Referenz zum aktuell erzeugten Objekt! 
         #Es werden bei der Initialisierung also die Attribute des gerade erzeugten Objektes beschrieben.
         self.cap = cv2.VideoCapture(src)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 832)

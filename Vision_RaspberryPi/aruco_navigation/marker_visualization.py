@@ -1,11 +1,7 @@
 import cv2
 
-frame = "TODO" # TODO: Platzhalter, definition in main 
-
-cX, cY, diag02, diag13 = "TODO"	# TODO: Platzhalter, definition in main 
-
 # drawing markers bounding box and centre + calculate marker position for EYE-Car moving command ################
-def marker_visualization(corners, ids, n):
+def marker_visualization(corners, ids, n, frame):
     # loop over the detected ArUCo corners
     for markerCorner in corners[n]:
         # extract the marker corners (which are always returned

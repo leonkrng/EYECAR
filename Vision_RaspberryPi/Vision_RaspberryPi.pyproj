@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{fc5adfd5-7d93-445a-bbf7-1a3da378d288}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>main.py</StartupFile>
+    <SearchPath />
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="aruco_navigation\marker_visualization.py" />
+    <Compile Include="aruco_navigation\movement_enum.py" />
+    <Compile Include="aruco_navigation\calc_navigation.py" />
+    <Compile Include="aruco_navigation\read_marker.py" />
+    <Compile Include="aruco_navigation\webcam_video_stream.py" />
+    <Compile Include="aruco_navigation\__init__.py" />
+    <Compile Include="communication\serial_connection.py" />
+    <Compile Include="lidar_sensor\__init__.py" />
+    <Compile Include="main.py" />
+    <Compile Include="overlay\draw_overlay.py" />
+    <Compile Include="overlay\__init__.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="aruco_navigation" />
+    <Folder Include="communication" />
+    <Folder Include="lidar_sensor" />
+    <Folder Include="overlay\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>
