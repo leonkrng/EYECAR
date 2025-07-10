@@ -37,7 +37,7 @@ fps = FPS().start()
 serial_connection = SerialConnection()
 serial_connection.start()
 
-
+# GitTest
 while 1:
     
     frame = video_stream.read()
