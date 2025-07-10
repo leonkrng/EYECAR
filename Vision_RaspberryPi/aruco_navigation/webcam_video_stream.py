@@ -1,8 +1,9 @@
 from threading import Thread
+from time import sleep
 import cv2
 
 class WebcamVideoStream:
-    def __init__(self, src=1):
+    def __init__(self, src=1, target_fps=30):
         # initialize the video camera stream and read the first frame
         # from the stream
         #832x624
@@ -16,6 +17,7 @@ class WebcamVideoStream:
         # initialize the variable used to indicate if the thread should
         # be stopped
         self.stopped = False
+        self.target_fps = target_fps
 
         
     def start(self):
@@ -31,6 +33,8 @@ class WebcamVideoStream:
             # otherwise, read the next frame from the stream
         
             (self.grabbed, self.frame) = self.cap.read()
+
+            sleep(1/self.target_fps)
             
     def read(self):
         # return the frame most recently read

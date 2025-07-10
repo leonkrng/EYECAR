@@ -1,6 +1,6 @@
 import cv2 
 
-def draw_overlay(frame, telemetry_data, navigation_list, prev_aruco_navigation_active):
+def draw_overlay(frame, telemetry_data, navigation_list, actual_ID, prev_aruco_navigation_active):
     try:
             cv2.rectangle(frame, (15,20), (275,190), (50,50,50), -1) #grauer Hintergrund Telemetriedaten
             cv2.line(frame, (396,312), (436, 312), (255,255,255), 1) #Fadenkreuz waagerechte Linie
@@ -39,7 +39,7 @@ def draw_overlay(frame, telemetry_data, navigation_list, prev_aruco_navigation_a
             
                 cv2.putText(img=frame, text="aktiv", org=(200, 150), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(0, 255, 0),thickness=1)
                 if str(telemetry_data[11]) == 's':
-                    cv2.putText(img=frame, text="Suche Marker "+str(navigation_list[actualID]), org=(350, 290), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.9, color=(0, 0, 255),thickness=2)
+                    cv2.putText(img=frame, text="Suche Marker "+str(navigation_list[actual_ID]), org=(350, 290), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.9, color=(0, 0, 255),thickness=2)
                 else:
                     cv2.putText(img=frame, text=str(telemetry_data[11]), org=(408, 290), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(0, 0, 255),thickness=2)
             else:

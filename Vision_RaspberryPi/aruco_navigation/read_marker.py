@@ -37,4 +37,7 @@ def read_marker(frame, prev_aruco_navigation_active, navigation_list, max_marker
             if actual_ID == len(navigation_list):
                 command = MovementEnum.STOP
 
+            else:
+                command = MovementEnum.NO_MARKER
+
     return command

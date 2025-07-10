@@ -23,18 +23,21 @@ class SerialConnection:
         self._text_to_send = new_text
 
     @property
-    def telemtry_data(self):
+    def telemetry_data(self):
         return self._telemetry_data
 
     @text_to_send.setter
-    def telemtry_data(self, new_data):
+    def telemetry_data(self, new_data):
         self._telemetry_data = new_data
     
     def start(self):
-        # Start the thread to read frames from the video cap
-        Thread(target=self.readSerialInput, args=()).start()
-        Thread(target=self.sendSerialOutput, args=()).start()
-        return self
+        try:
+            # Start the thread to read frames from the video cap
+            Thread(target=self.readSerialInput, args=()).start()
+            Thread(target=self.sendSerialOutput, args=()).start()
+            return self
+        except:
+            print("Error starting serial connection threads")
     
     def sendSerialOutput(self):
         msg = 1 
@@ -62,7 +65,7 @@ class SerialConnection:
             
             if len(serialInputString) > 2:   
                 try:
-                    self.telemtry_data = serialInputString.split("/")
+                    self.telemetry_data = serialInputString.split("/")
                     
                 except:
                     val="splitfail"           

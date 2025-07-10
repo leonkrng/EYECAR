@@ -59,7 +59,7 @@ while 1:
 
 
     # Draw overlay
-    overlay.draw_overlay(frame, serial_connection.telemetry_data, prev_aruco_navigation_active)
+    overlay.draw_overlay(frame, serial_connection.telemetry_data, navigation_list, actual_ID, prev_aruco_navigation_active)
     
 
     # If the `q` key was pressed, break from the loop
