@@ -4,13 +4,16 @@ import time
 
 class SerialConnection:
     def __init__(self):
-        self.ser = serial.Serial('/dev/ttyAMA0',
-                                 baudrate=115200,
-                                 bytesize=8,
-                                 timeout=50,
-                                 xonxoff=False,
-                                 rtscts=False,
-                                 dsrdtr=False)
+       # self.ser = serial.Serial('/dev/ttyAMA0',
+       #                          baudrate=115200,
+        #                         bytesize=8,
+         #                        timeout=50,
+          #                       xonxoff=False,
+           #                      rtscts=False,
+            #                     dsrdtr=False)
+        self.ser = serial.serial_for_url('loop://', baudrate=115200, timeout=1)
+
+
         self.stopped = False
         self._text_to_send = "_"
 

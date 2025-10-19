@@ -1,8 +1,8 @@
 from __future__ import print_function
 from threading import Thread
-from aruco_navigation.movement_enum import MovementEnum
-from communication.serial_connection import SerialConnection
-from communication.serial_input import SerialInput
+#from aruco_navigation.movement_enum import MovementEnum
+#from communication.serial_connection import SerialConnection
+#from communication.serial_input import SerialInput
 from imutils.video import WebcamVideoStream
 from imutils.video import FPS
 import argparse
@@ -34,16 +34,20 @@ video_stream = WebcamVideoStream(src=0).start()
 
 fps = FPS().start()
 
-serial_connection = SerialConnection()
+serial_connection = communication.serial_connection.SerialConnection()
 serial_connection.start()
 
-# GitTest
 while 1:
     
     frame = video_stream.read()
 
     # Read ArUco-marker
-    command = aruco_navigation.read_marker(frame, prev_aruco_navigation_active, navigation_list, max_marker_size, camera_resolution, actual_ID)
+    command = aruco_navigation.read_marker.read_marker(frame,
+                                           prev_aruco_navigation_active,
+                                           navigation_list,
+                                           max_marker_size,
+                                           camera_resolution, 
+                                           actual_ID)
 
     serial_connection.text_to_send = "1/7/" + str(command) + "/8\r\n"
 
@@ -59,7 +63,7 @@ while 1:
 
 
     # Draw overlay
-    overlay.draw_overlay(frame, serial_connection.telemetry_data, navigation_list, actual_ID, prev_aruco_navigation_active)
+    overlay.draw_overlay.draw_overlay(frame, serial_connection.telemetry_data, navigation_list, actual_ID, prev_aruco_navigation_active)
     
 
     # If the `q` key was pressed, break from the loop
