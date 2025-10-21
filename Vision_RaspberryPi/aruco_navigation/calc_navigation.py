@@ -1,7 +1,7 @@
 from aruco_navigation.movement_enum import MovementEnum
 import cv2
 
-def calc_navigation(cX, diag02, diag13, relationX, actualID, *resolution, frame):
+def calc_navigation(cX, diag02, diag13, relationX, actualID, resolution, frame):
 
     # Draw frame where EYECAR drives forward
     centerFrameLeft = int(resolution[0][0]*0.4)

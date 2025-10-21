@@ -1,21 +1,29 @@
 import serial
+import socket
 from threading import Thread
 import time
 
 class SerialConnection:
     def __init__(self):
-       # self.ser = serial.Serial('/dev/ttyAMA0',
-       #                          baudrate=115200,
-        #                         bytesize=8,
-         #                        timeout=50,
-          #                       xonxoff=False,
-           #                      rtscts=False,
-            #                     dsrdtr=False)
-        self.ser = serial.serial_for_url('loop://', baudrate=115200, timeout=1)
+
+        if socket.gethostname() != "eye-car-pi":
+            # mock serialport for testing
+            self.ser = serial.serial_for_url('loop://',
+                                             baudrate=115200,
+                                             timeout=1)
+        else:
+            self.ser = serial.Serial('/dev/ttyAMA0',
+                                 baudrate=115200,
+                                 bytesize=8,
+                                 timeout=50,
+                                 xonxoff=False,
+                                 rtscts=False,
+                                 dsrdtr=False)
 
 
         self.stopped = False
         self._text_to_send = "_"
+        self._telemtry_data = ["-1"] * 22
 
     @property
     def text_to_send(self):
@@ -27,9 +35,9 @@ class SerialConnection:
 
     @property
     def telemetry_data(self):
-        return self._telemetry_data
+        return self._telemtry_data 
 
-    @text_to_send.setter
+    @telemetry_data.setter
     def telemetry_data(self, new_data):
         self._telemetry_data = new_data
     
@@ -58,8 +66,6 @@ class SerialConnection:
                     msg = 0
     
     def readSerialInput(self):
-        
-        global splitString
 
         while True:
             if self.stopped:

@@ -1,8 +1,5 @@
 from __future__ import print_function
 from threading import Thread
-#from aruco_navigation.movement_enum import MovementEnum
-#from communication.serial_connection import SerialConnection
-#from communication.serial_input import SerialInput
 from imutils.video import WebcamVideoStream
 from imutils.video import FPS
 import argparse
@@ -14,7 +11,6 @@ import numpy as np
 import time
 import cv2
 
-# Custom Modules
 import aruco_navigation
 import communication
 import lidar_sensor
@@ -24,7 +20,7 @@ import overlay
 camera_resolution = [832, 600]  # Camera resolution [x, y]
 navigation_list = [1, 2, 3, 4]
 max_marker_size = 0.4  # maximum marker size in relation to camera x-resoulution (0-1)
-prev_aruco_navigation_active = 0  # für Erkennung steigende Flanke
+prev_aruco_navigation_active = 0  # for flank detection
 actual_ID = 0
 error_car = 0
 
@@ -40,6 +36,7 @@ serial_connection.start()
 while 1:
     
     frame = video_stream.read()
+    frame = cv2.resize(frame, (832, 600))
 
     # Read ArUco-marker
     command = aruco_navigation.read_marker.read_marker(frame,
@@ -51,7 +48,6 @@ while 1:
 
     serial_connection.text_to_send = "1/7/" + str(command) + "/8\r\n"
 
-
     if serial_connection.telemetry_data[10] == "1" and prev_aruco_navigation_active == 0:
         actual_ID = 0
         print("Navigation wurde neu gestartet. Bitte beim ersten Marker anfangen")
@@ -61,10 +57,8 @@ while 1:
     else:
         prev_aruco_navigation_active = 0
 
-
     # Draw overlay
     overlay.draw_overlay.draw_overlay(frame, serial_connection.telemetry_data, navigation_list, actual_ID, prev_aruco_navigation_active)
-    
 
     # If the `q` key was pressed, break from the loop
     key = cv2.waitKey(1) & 0xFF

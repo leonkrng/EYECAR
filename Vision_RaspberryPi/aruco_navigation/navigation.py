@@ -2,7 +2,6 @@ import cv2
 
 frame = "TODO" # TODO: Platzhalter, definition in main 
 
-####### Navigations-Funktion kann evtl für die Ausrichtung bei der Objekterkennung verwendet werden ##########
 def navigation(cX, diag02, diag13, relationX, actualID, *resolution):
     # draw frame where EYE-Car drives forward
     centerFrameLeft = int(resolution[0][0]*0.4)
