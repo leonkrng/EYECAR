@@ -49,7 +49,7 @@ bool high;
 byte SPISEND,SPIRECEIVE;    
 
 int TIMEFACTOR = 50;      //Vorher: 50
-int MAXSPEED = 8;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
+int MAXSPEED = 7;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
 int UPPERLIMITDELAY = 300;
 
 bool enableUltraschallSensorik = true;
@@ -68,8 +68,8 @@ volatile int interruptGrenzwert[4];
 //________________________________________________________________________________
 byte led = 13;
 
-volatile byte DO_Step1 = 26, DO_Step2 = 27, DO_Step3 = 32, DO_Step4 = 33;
-volatile byte DO_Dir1 = 12, DO_Dir2 = 13, DO_Dir3 = 14, DO_Dir4 = 15;
+volatile byte DO_Dir1 = 26, DO_Dir2 = 27, DO_Dir3 = 32, DO_Dir4 = 33;
+volatile byte DO_Step1 = 12, DO_Step2 = 13, DO_Step3 = 14, DO_Step4 = 15;
 
 byte AI_SpgMess_36V = 34, AI_SpgMess_24V = 35, AI_SpgMess_5V = 36;
 
