@@ -36,6 +36,11 @@ serial_connection.start()
 while 1:
     
     frame = video_stream.read()
+
+    if frame is None:
+        print("[ERROR]: No frame found.")
+        continue
+
     frame = cv2.resize(frame, (832, 600))
 
     # Read ArUco-marker
