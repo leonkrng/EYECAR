@@ -135,6 +135,7 @@ void loop() {
           if(runtime > 1100) { 
             if(stickLY == 0 && stickLY == 0 && stickRX == 0 && stickRY == 0) {          //Wenn alle Werte 0 sind, ist wahrscheinlich das gamepad abgezogen
               //Serial.println("db2");
+              sende(controlMessage);
               digitalWrite(statusLED, HIGH);                                            //dann LED blinken lassen
               delay(200);
               digitalWrite(statusLED, LOW);

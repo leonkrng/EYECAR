@@ -52,6 +52,8 @@ int TIMEFACTOR = 50;      //Vorher: 50
 int MAXSPEED = 7;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
 int UPPERLIMITDELAY = 300;
 
+float minStickValRel = 0.05; // minimal relativ value of the analogsticks where a movement should be initiated
+
 bool enableUltraschallSensorik = true;
 int stoppBremseVorne;
 
@@ -409,6 +411,18 @@ void Greifeinheit(){
   } else {sendToMega = 0;}
 }
 
+bool analogValBigEnough(volatile int stickValIn) {
+  // function retunrns true when the analog value of a stick exceeds a certain value
+  // implementation of a deadzone around the centerpoint of a stick
+  if (stickValIn / 1.275 >= 100 + (100 * minStickValRel)) { // when analog value is bigger then the upper limit
+    return true; 
+  } else if (stickValIn / 1.275 <= 100 - (100 * minStickValRel)) { // when analog value is lower then the upper limit
+    return true;
+  } else {
+    return false; // no statement hit
+  }
+}
+
 void processData() {
         //Controlldata Struktur                                                         DB
         //controldata[0] Joystik 1 --> Links Rechts drehung
@@ -457,14 +471,16 @@ void processData() {
           Serial.println("[INFO] Route Playback complete");
           recordPlaybackCounter++;
         } 
-      } else {                //Wenn Sendersignal vorhanden:      Daten vom Controldata-Array (Empfangene Daten) laden
+      } else { // Wenn Sendersignal vorhanden:      Daten vom Controldata-Array (Empfangene Daten) laden
         // IMPORTANT: signal from sender is not equal to gamepad is plugged in!! -> a distinction must be made
         // If the gamepad is not plugged in, all analog values should be 0
         if(controldata[0] + controldata[2] + controldata[3] != 0) {// when at least onw of the stick values is not 0
           // do the normal routine
-          stellwertSoll[0] = controldata[0] / 1.275 -100;                   //Drehung links/rechts      Wertebereich -100 - +100%
-          stellwertSoll[1] = controldata[3] / 1.275 -100;                   //Vor/rückwärts
-          stellwertSoll[2] = controldata[2] / 1.275 -100;                   //links/rechts
+          //deadzone around centerpoint 
+          stellwertSoll[0] = (analogValBigEnough(controldata[0])) ? controldata[0] / 1.275 -100 : 0 ; //Drehung links/rechts      Wertebereich -100 - +100%
+          stellwertSoll[1] = (analogValBigEnough(controldata[3])) ? controldata[3] / 1.275 -100 : 0 ; //Vor/rückwärts
+          stellwertSoll[2] = (analogValBigEnough(controldata[2])) ? controldata[2] / 1.275 -100 : 0 ; //links/rechts
+
         } else {
           // set all setvalues to 0 so no movement is made with the gamepad
           // there could still be influence from Aruco or ultrasound !!
