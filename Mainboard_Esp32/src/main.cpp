@@ -458,14 +458,23 @@ void processData() {
           recordPlaybackCounter++;
         } 
       } else {                //Wenn Sendersignal vorhanden:      Daten vom Controldata-Array (Empfangene Daten) laden
-
-        stellwertSoll[0] = controldata[0] / 1.275 -100;                   //Drehung links/rechts      Wertebereich -100 - +100%
-        stellwertSoll[1] = controldata[3] / 1.275 -100;                   //Vor/rückwärts
-        stellwertSoll[2] = controldata[2] / 1.275 -100;                   //links/rechts
-
+        // IMPORTANT: signal from sender is not equal to gamepad is plugged in!! -> a distinction must be made
+        // If the gamepad is not plugged in, all analog values should be 0
+        if(controldata[0] + controldata[2] + controldata[3] != 0) {// when at least onw of the stick values is not 0
+          // do the normal routine
+          stellwertSoll[0] = controldata[0] / 1.275 -100;                   //Drehung links/rechts      Wertebereich -100 - +100%
+          stellwertSoll[1] = controldata[3] / 1.275 -100;                   //Vor/rückwärts
+          stellwertSoll[2] = controldata[2] / 1.275 -100;                   //links/rechts
+        } else {
+          // set all setvalues to 0 so no movement is made with the gamepad
+          // there could still be influence from Aruco or ultrasound !!
+          stellwertSoll[0] = 0;
+          stellwertSoll[1] = 0;
+          stellwertSoll[2] = 0;
+        }
 
         
-        arucoAutomatik();
+        arucoAutomatik(); 
         ultraschallautomatik();
 
         stellwert[0] =  stellwertSoll[0] + arucoZ;                        //Drehung wird nicht durch Ultraschallsensoren beeinflusst
