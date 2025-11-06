@@ -52,9 +52,9 @@ int TIMEFACTOR = 50;      //Vorher: 50
 int MAXSPEED = 7;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
 int UPPERLIMITDELAY = 300;
 
-float minStickValRel = 0.05; // minimal relativ value of the analogsticks where a movement should be initiated
+float minStickValRel = 0.9; // minimal relativ value of the analogsticks where a movement should be initiated
 
-bool enableUltraschallSensorik = true;
+bool enableUltraschallSensorik = false;
 int stoppBremseVorne;
 
 
@@ -438,10 +438,11 @@ void processData() {
 
         //zuerst werden die Sonderfunktionen abgefragt, da sie evtl eingreifen müssen
       beleuchtungAktiv = controldata[4];
-      if(enableUltraschallSensorik xor !controldata[6]) {
+      // raus mit dem Ultaschallmüll
+      /*if(enableUltraschallSensorik xor !controldata[6]) {
         Serial.print("[INFO] ultraschallsensorik "); Serial.println(!controldata[6]);
       }
-      enableUltraschallSensorik = !controldata[6];
+      enableUltraschallSensorik = !controldata[6];*/
 
       GreifeinheitHoch = controldata[8];
       GreifeinheitRunter = controldata[10];
