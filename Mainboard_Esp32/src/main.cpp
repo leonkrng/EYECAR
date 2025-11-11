@@ -52,7 +52,7 @@ int TIMEFACTOR = 50;      //Vorher: 50
 int MAXSPEED = 7;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
 int UPPERLIMITDELAY = 300;
 
-float minStickValRel = 0.9; // minimal relativ value of the analogsticks where a movement should be initiated
+float minStickValRel = 0.2; // minimal relativ value of the analogsticks where a movement should be initiated
 
 bool enableUltraschallSensorik = false;
 int stoppBremseVorne;
@@ -537,10 +537,15 @@ void recordStellwerte() {
 }
 
 void calcMecanumProportion() {
-  VLneu = -stellwert[0] - stellwert[1] - stellwert[2];       // Wertebereich -300 - +300
+  /*VLneu = -stellwert[0] - stellwert[1] - stellwert[2];       // Wertebereich -300 - +300
   VRneu =  stellwert[0] - stellwert[1] + stellwert[2]; // inverted every value to reverse the movement 
   HLneu = -stellwert[0] - stellwert[1] + stellwert[2]; // just a try - no idea if this works
-  HRneu =  stellwert[0] - stellwert[1] - stellwert[2];
+  HRneu =  stellwert[0] - stellwert[1] - stellwert[2];*/
+
+  VLneu = + stellwert[0] + stellwert[1] + stellwert[2];       // Wertebereich -300 - +300
+  VRneu = - stellwert[0] + stellwert[1] - stellwert[2]; // inverted every value to reverse the movement 
+  HLneu = + stellwert[0] + stellwert[1] - stellwert[2]; // just a try - no idea if this works
+  HRneu = - stellwert[0] + stellwert[1] + stellwert[2];
   
   //float faktorAlt = 0.9997, faktorNeu = 0.0003;
   //float faktorAlt = 0.95, faktorNeu = 0.05;
