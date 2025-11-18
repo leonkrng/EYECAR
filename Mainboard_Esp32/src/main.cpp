@@ -14,7 +14,7 @@
 //#define IS_RFM69HW
 RFM69 radio(25,4);   //SS-Pin, Interrupt-Pin
 
-#define debugLevel 0
+#define debugLevel 1
 
 //DB Für Greifeinheit
 char fromSerialMon = ' ';
@@ -52,9 +52,7 @@ int TIMEFACTOR = 50;      //Vorher: 50
 int MAXSPEED = 7;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
 int UPPERLIMITDELAY = 300;
 
-float minStickValRel = 0.2; // minimal relativ value of the analogsticks where a movement should be initiated
-
-bool enableUltraschallSensorik = false;
+bool enableUltraschallSensorik = true;
 int stoppBremseVorne;
 
 
@@ -411,113 +409,94 @@ void Greifeinheit(){
   } else {sendToMega = 0;}
 }
 
-bool analogValBigEnough(volatile int stickValIn) {
-  // function retunrns true when the analog value of a stick exceeds a certain value
-  // implementation of a deadzone around the centerpoint of a stick
-  if (stickValIn / 1.275 >= 100 + (100 * minStickValRel)) { // when analog value is bigger then the upper limit
-    return true; 
-  } else if (stickValIn / 1.275 <= 100 - (100 * minStickValRel)) { // when analog value is lower then the upper limit
-    return true;
-  } else {
-    return false; // no statement hit
-  }
-}
-
 void processData() {
-        //Controlldata Struktur                                                         DB
-        //controldata[0] Joystik 1 --> Links Rechts drehung
-        //controldata[1] Joystik 1 --> Hoch Runter Keine Funktion
-        //controldata[2] Joystik 2 --> Fahren Links Rechts
-        //controldata[3] Joystik 2 --> Fahren Vor Zurück
-        //controldata[4] Funktionstaste 1 --> Licht An/Aus
-        //controldata[5] Funktionstaste 2 --> Autonome Aruko NAvigation AN/AUS
-        //controldata[6] Funktionstaste 3 --> Ultraschallerkennung AN/AUS
-        //controldata[7] Funktionstaste 4 --> Ohne Funktion (Vielleicht Auto GReifen AN/AUS)
-        //controldata[8]-[11] Pfeiltasten?, Rücktasten? --> Greifeinheit
+   //Controlldata Struktur                                                         DB
+   //controldata[0] Joystik 1 --> Links Rechts drehung
+   //controldata[1] Joystik 1 --> Hoch Runter Keine Funktion
+   //controldata[2] Joystik 2 --> Fahren Links Rechts
+   //controldata[3] Joystik 2 --> Fahren Vor Zurück
+   //controldata[4] Funktionstaste 1 --> Licht An/Aus
+   //controldata[5] Funktionstaste 2 --> Autonome Aruko NAvigation AN/AUS
+   //controldata[6] Funktionstaste 3 --> Ultraschallerkennung AN/AUS
+   //controldata[7] Funktionstaste 4 --> Ohne Funktion (Vielleicht Auto GReifen AN/AUS)
+   //controldata[8]-[11] Pfeiltasten?, Rücktasten? --> Greifeinheit
 
 
-        //zuerst werden die Sonderfunktionen abgefragt, da sie evtl eingreifen müssen
-      beleuchtungAktiv = controldata[4];
-      // raus mit dem Ultaschallmüll
-      /*if(enableUltraschallSensorik xor !controldata[6]) {
-        Serial.print("[INFO] ultraschallsensorik "); Serial.println(!controldata[6]);
-      }
-      enableUltraschallSensorik = !controldata[6];*/
+   //zuerst werden die Sonderfunktionen abgefragt, da sie evtl eingreifen müssen
+ beleuchtungAktiv = controldata[4];
+ if(enableUltraschallSensorik xor !controldata[6]) {
+   Serial.print("[INFO] ultraschallsensorik "); Serial.println(!controldata[6]);
+ }
+ enableUltraschallSensorik = !controldata[6];
 
-      GreifeinheitHoch = controldata[8];
-      GreifeinheitRunter = controldata[10];
+ GreifeinheitHoch = controldata[8];
+ GreifeinheitRunter = controldata[10];
 
-      GreiferAuf = controldata[9];
-      GreiferZu = controldata[11];
+ GreiferAuf = controldata[9];
+ GreiferZu = controldata[11];
 
-      //Die Aruco-Navigation wird bei jedem Flankenwechsel gestartet/gestoppt!
-      if(lastArucoNavigation != controldata[5]) {
-        lastArucoNavigation = controldata[5];
-        arucoNavigationAktiv = !arucoNavigationAktiv;
-        Serial.print("[INFO] Aruconavigation "); Serial.println(arucoNavigationAktiv);
-      }
-
+ //Die Aruco-Navigation wird bei jedem Flankenwechsel gestartet/gestoppt!
+ if(lastArucoNavigation != controldata[5]) {
+   lastArucoNavigation = controldata[5];
+   arucoNavigationAktiv = !arucoNavigationAktiv;
+   Serial.print("[INFO] Aruconavigation "); Serial.println(arucoNavigationAktiv);
+ }
 
 
-      if(receiverTimeout) {   //Wenn kein Sendersignal: 
-        if(recordPlaybackCounter < 100) {   //Wenn der Playback-Stack noch nicht abgefahren ist:
-          stellwert[0] = -stellwertRecord[recordPlaybackCounter][0];   //Playback der Aufzeichnung
-          stellwert[1] = -stellwertRecord[recordPlaybackCounter][1];   //Reinladen der Stellwerte aus dem Stack
-          stellwert[2] = -stellwertRecord[recordPlaybackCounter][2];   //Negieren, weil man ja rückwärts fahren will
-          
-        } else if(recordPlaybackCounter == 100) {
-          stellwert[0] = 0;               //Wenn der Playback-Stack zuende abgefahren ist:
-          stellwert[1] = 0;               //Fahrzeug stoppen.
-          stellwert[2] = 0;               //
-          Serial.println("[INFO] Route Playback complete");
-          recordPlaybackCounter++;
-        } 
-      } else { // Wenn Sendersignal vorhanden:      Daten vom Controldata-Array (Empfangene Daten) laden
-        // IMPORTANT: signal from sender is not equal to gamepad is plugged in!! -> a distinction must be made
-        // If the gamepad is not plugged in, all analog values should be 0
-        if(controldata[0] + controldata[2] + controldata[3] != 0) {// when at least onw of the stick values is not 0
-          // do the normal routine
-          //deadzone around centerpoint 
-          stellwertSoll[0] = (analogValBigEnough(controldata[0])) ? controldata[0] / 1.275 -100 : 0 ; //Drehung links/rechts      Wertebereich -100 - +100%
-          stellwertSoll[1] = (analogValBigEnough(controldata[3])) ? controldata[3] / 1.275 -100 : 0 ; //Vor/rückwärts
-          stellwertSoll[2] = (analogValBigEnough(controldata[2])) ? controldata[2] / 1.275 -100 : 0 ; //links/rechts
 
-        } else {
-          // set all setvalues to 0 so no movement is made with the gamepad
-          // there could still be influence from Aruco or ultrasound !!
-          stellwertSoll[0] = 0;
-          stellwertSoll[1] = 0;
-          stellwertSoll[2] = 0;
-        }
+ if(receiverTimeout) {   //Wenn kein Sendersignal: 
+  /* if(recordPlaybackCounter < 100) {   //Wenn der Playback-Stack noch nicht abgefahren ist:
+     stellwert[0] = -stellwertRecord[recordPlaybackCounter][0];   //Playback der Aufzeichnung
+     stellwert[1] = -stellwertRecord[recordPlaybackCounter][1];   //Reinladen der Stellwerte aus dem Stack
+     stellwert[2] = -stellwertRecord[recordPlaybackCounter][2];   //Negieren, weil man ja rückwärts fahren will
+     
+   } else if(recordPlaybackCounter == 100) {
+     stellwert[0] = 0;               //Wenn der Playback-Stack zuende abgefahren ist:
+     stellwert[1] = 0;               //Fahrzeug stoppen.
+     stellwert[2] = 0;               //
+     Serial.println("[INFO] Route Playback complete");
+     recordPlaybackCounter++;
+   } */
 
-        
-        arucoAutomatik(); 
-        ultraschallautomatik();
+  // HALT STOP!!!!1!1
+  stellwert[0] = 0; // Alle Bewegungswerte auf Null
+  stellwert[1] = 0;
+  stellwert[2] = 0;
+ } else {                //Wenn Sendersignal vorhanden:      Daten vom Controldata-Array (Empfangene Daten) laden
 
-        stellwert[0] =  stellwertSoll[0] + arucoZ;                        //Drehung wird nicht durch Ultraschallsensoren beeinflusst
-        stellwert[1] = (stellwertSoll[1] + arucoY)* UltrschallbremseY;    //Y-Richtung wird durch Ultraschallsensoren beeinflusst
-        stellwert[2] =  stellwertSoll[2] * UltrschallbremseX;             //X-Richtung wird durch Ultraschallsensoren beeinflusst
-      }
-      
-    
-
-      //Serial.println(driveValue[0]);
-      //LX, LY, RX, RY
-      if(datenVomNano[1] > 0) {
-        distanzVorne = (distanzVorne * 0.999) + (0.001* datenVomNano[1]);
-      }
-      if(datenVomNano[2] > 0) {
-        distanzLinks = (distanzLinks * 0.999) + (0.001* datenVomNano[2]);
-      }
-      if(datenVomNano[3] > 0) {
-        distanzRechts = (distanzRechts * 0.999) + (0.001* datenVomNano[3]);
-      }
-      if(datenVomNano[4] > 0) {
-        distanzHinten = (distanzHinten * 0.999) + (0.001* datenVomNano[4]);
-      }
+   stellwertSoll[0] = controldata[0] / 1.275 -100;                   //Drehung links/rechts      Wertebereich -100 - +100%
+   stellwertSoll[1] = controldata[3] / 1.275 -100;                   //Vor/rückwärts
+   stellwertSoll[2] = controldata[2] / 1.275 -100;                   //links/rechts
 
 
-      
+   
+   arucoAutomatik();
+   ultraschallautomatik();
+
+   stellwert[0] =  stellwertSoll[0] + arucoZ;                        //Drehung wird nicht durch Ultraschallsensoren beeinflusst
+   stellwert[1] = (stellwertSoll[1] + arucoY)* UltrschallbremseY;    //Y-Richtung wird durch Ultraschallsensoren beeinflusst
+   stellwert[2] =  stellwertSoll[2] * UltrschallbremseX;             //X-Richtung wird durch Ultraschallsensoren beeinflusst
+ }
+ 
+
+
+ //Serial.println(driveValue[0]);
+ //LX, LY, RX, RY
+ if(datenVomNano[1] > 0) {
+   distanzVorne = (distanzVorne * 0.999) + (0.001* datenVomNano[1]);
+ }
+ if(datenVomNano[2] > 0) {
+   distanzLinks = (distanzLinks * 0.999) + (0.001* datenVomNano[2]);
+ }
+ if(datenVomNano[3] > 0) {
+   distanzRechts = (distanzRechts * 0.999) + (0.001* datenVomNano[3]);
+ }
+ if(datenVomNano[4] > 0) {
+   distanzHinten = (distanzHinten * 0.999) + (0.001* datenVomNano[4]);
+ }
+
+
+ 
 }
 
 void recordStellwerte() {
@@ -537,15 +516,10 @@ void recordStellwerte() {
 }
 
 void calcMecanumProportion() {
-  /*VLneu = -stellwert[0] - stellwert[1] - stellwert[2];       // Wertebereich -300 - +300
-  VRneu =  stellwert[0] - stellwert[1] + stellwert[2]; // inverted every value to reverse the movement 
-  HLneu = -stellwert[0] - stellwert[1] + stellwert[2]; // just a try - no idea if this works
-  HRneu =  stellwert[0] - stellwert[1] - stellwert[2];*/
-
-  VLneu = + stellwert[0] + stellwert[1] + stellwert[2];       // Wertebereich -300 - +300
-  VRneu = - stellwert[0] + stellwert[1] - stellwert[2]; // inverted every value to reverse the movement 
-  HLneu = + stellwert[0] + stellwert[1] - stellwert[2]; // just a try - no idea if this works
-  HRneu = - stellwert[0] + stellwert[1] + stellwert[2];
+  VLneu =  stellwert[0] + stellwert[1] + stellwert[2];       // Wertebereich -300 - +300
+  VRneu = -stellwert[0] + stellwert[1] - stellwert[2];
+  HLneu =  stellwert[0] + stellwert[1] - stellwert[2];
+  HRneu = -stellwert[0] + stellwert[1] + stellwert[2];
   
   //float faktorAlt = 0.9997, faktorNeu = 0.0003;
   //float faktorAlt = 0.95, faktorNeu = 0.05;
@@ -813,7 +787,7 @@ void loop() {
   
   if(currentMillis - lastMillisRadiopacketReceive > 800  && !receiverTimeout) {
     Serial.println("[WARN] Receiver Timeout");
-    Serial.println("[INFO] Starting Route Playback");
+    Serial.println("[INFO] Movement stopped");
     receiverTimeout = true;
     digitalWrite(DO_LED, LOW);
     recordPlaybackCounter = 0;
