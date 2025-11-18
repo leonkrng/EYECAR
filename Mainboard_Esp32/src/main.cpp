@@ -52,7 +52,6 @@ int TIMEFACTOR = 50;      //Vorher: 50
 int MAXSPEED = 7;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
 int UPPERLIMITDELAY = 300;
 
-bool enableUltraschallSensorik = true;
 int stoppBremseVorne;
 
 
@@ -250,76 +249,6 @@ void pullData_RASPI(String dataInput) {
   //Serial.print("    ->"); Serial.print(raspiData[0]);Serial.print(" "); Serial.print(raspiData[1]);Serial.print(" "); Serial.println(raspiData[2]);
 }
 
-void ultraschallautomatik() {
-    if(enableUltraschallSensorik) {
-      /**
-      if(stellwertSoll[1] >= 0) {                                           //Wenn Knüppel nach vorne gedrückt wird zum vorwörtsfahren
-        if(distanzVorne > 10 && distanzVorne < 120) {                       //und der Ultraschallsensor mittlere Entfernung zu Objekt hat
-          UltrschallbremseY = 0.00864 * distanzVorne -0.0364;               //anteilig den Stellwert reduzieren bzw. den Faktor verringern
-        } else if(distanzVorne >= 120) {                                    //wenn kein Objekt in Sichtweite
-          UltrschallbremseY = 1;                                            //kein Reduktionsfaktor
-        } else {                                                            //wenn Objekt sehr sehr sehr nah dran
-          UltrschallbremseY = 0.05;                                         //auf Minimum reduzieren
-        } 
-      } else {                                                              //das selbe für Knüppel nach hinten/rückwärts aber mit anderen Sensoren
-        if(distanzHinten > 10 && distanzHinten < 120) {
-          UltrschallbremseY = 0.00864 * distanzHinten -0.0364;
-        } else if(distanzHinten >= 120) {
-          UltrschallbremseY = 1;
-        } else {
-          UltrschallbremseY = 0.05;
-        } 
-      }
-
-      **/
-
-      if(stellwertSoll[1] + arucoY >= 0) {                                           //Wenn Knüppel nach vorne gedrückt wird zum vorwörtsfahren
-        if(distanzVorne > 8 && distanzVorne < 70) {                       //und der Ultraschallsensor mittlere Entfernung zu Objekt hat
-          UltrschallbremseY = 0.0152 * distanzVorne -0.073;               //anteilig den Stellwert reduzieren bzw. den Faktor verringern
-        } else if(distanzVorne >= 70) {                                    //wenn kein Objekt in Sichtweite
-          UltrschallbremseY = 1;                                            //kein Reduktionsfaktor
-        } else {                                                            //wenn Objekt sehr sehr sehr nah dran
-          UltrschallbremseY = 0.05;                                         //auf Minimum reduzieren
-        } 
-      } else {                                                              //das selbe für Knüppel nach hinten/rückwärts aber mit anderen Sensoren
-        if(distanzHinten > 8 && distanzHinten < 70) {
-          UltrschallbremseY = 0.0152 * distanzHinten -0.073;
-        } else if(distanzHinten >= 70) {
-          UltrschallbremseY = 1;
-        } else {
-          UltrschallbremseY = 0.05;
-        } 
-      }
-
-
-
-
-
-      if(stellwertSoll[2] >= 0) {                                           //Das selbe nochmal für links/rechts
-        if(distanzRechts > 8 && distanzRechts < 70) {
-          UltrschallbremseX = 0.0152 * distanzRechts -0.073;
-        } else if(distanzRechts >= 70) {
-          UltrschallbremseX = 1;
-        } else {
-          UltrschallbremseX = 0.05;
-        } 
-      } else {
-        if(distanzLinks > 8 && distanzLinks < 70) {
-          UltrschallbremseX = 0.0152 * distanzLinks -0.073;
-        } else if(distanzLinks >= 70) {
-          UltrschallbremseX = 1;
-        } else {
-          UltrschallbremseX = 0.05;
-        } 
-      }
-     
-
-    } else {                        //Wenn Automatik deaktiviert ist
-      UltrschallbremseX = 1;        //Reduktionsfaktor inaktiv setzen
-      UltrschallbremseY = 1;        //daher Faktor 1
-    }
-}
-
 void arucoAutomatik() {
 
   if(arucoNavigationAktiv && !prevArucoNavigationAktiv) {
@@ -409,6 +338,8 @@ void Greifeinheit(){
   } else {sendToMega = 0;}
 }
 
+
+
 void processData() {
    //Controlldata Struktur                                                         DB
    //controldata[0] Joystik 1 --> Links Rechts drehung
@@ -417,17 +348,13 @@ void processData() {
    //controldata[3] Joystik 2 --> Fahren Vor Zurück
    //controldata[4] Funktionstaste 1 --> Licht An/Aus
    //controldata[5] Funktionstaste 2 --> Autonome Aruko NAvigation AN/AUS
-   //controldata[6] Funktionstaste 3 --> Ultraschallerkennung AN/AUS
+   //controldata[6] Funktionstaste 3 --> not in use
    //controldata[7] Funktionstaste 4 --> Ohne Funktion (Vielleicht Auto GReifen AN/AUS)
    //controldata[8]-[11] Pfeiltasten?, Rücktasten? --> Greifeinheit
 
 
    //zuerst werden die Sonderfunktionen abgefragt, da sie evtl eingreifen müssen
  beleuchtungAktiv = controldata[4];
- if(enableUltraschallSensorik xor !controldata[6]) {
-   Serial.print("[INFO] ultraschallsensorik "); Serial.println(!controldata[6]);
- }
- enableUltraschallSensorik = !controldata[6];
 
  GreifeinheitHoch = controldata[8];
  GreifeinheitRunter = controldata[10];
@@ -444,20 +371,7 @@ void processData() {
 
 
 
- if(receiverTimeout) {   //Wenn kein Sendersignal: 
-  /* if(recordPlaybackCounter < 100) {   //Wenn der Playback-Stack noch nicht abgefahren ist:
-     stellwert[0] = -stellwertRecord[recordPlaybackCounter][0];   //Playback der Aufzeichnung
-     stellwert[1] = -stellwertRecord[recordPlaybackCounter][1];   //Reinladen der Stellwerte aus dem Stack
-     stellwert[2] = -stellwertRecord[recordPlaybackCounter][2];   //Negieren, weil man ja rückwärts fahren will
-     
-   } else if(recordPlaybackCounter == 100) {
-     stellwert[0] = 0;               //Wenn der Playback-Stack zuende abgefahren ist:
-     stellwert[1] = 0;               //Fahrzeug stoppen.
-     stellwert[2] = 0;               //
-     Serial.println("[INFO] Route Playback complete");
-     recordPlaybackCounter++;
-   } */
-
+ if(receiverTimeout) {   //Wenn kein Sendersignal
   // HALT STOP!!!!1!1
   stellwert[0] = 0; // Alle Bewegungswerte auf Null
   stellwert[1] = 0;
@@ -467,16 +381,13 @@ void processData() {
    stellwertSoll[0] = controldata[0] / 1.275 -100;                   //Drehung links/rechts      Wertebereich -100 - +100%
    stellwertSoll[1] = controldata[3] / 1.275 -100;                   //Vor/rückwärts
    stellwertSoll[2] = controldata[2] / 1.275 -100;                   //links/rechts
-
-
    
    arucoAutomatik();
-   ultraschallautomatik();
 
-   stellwert[0] =  stellwertSoll[0] + arucoZ;                        //Drehung wird nicht durch Ultraschallsensoren beeinflusst
-   stellwert[1] = (stellwertSoll[1] + arucoY)* UltrschallbremseY;    //Y-Richtung wird durch Ultraschallsensoren beeinflusst
-   stellwert[2] =  stellwertSoll[2] * UltrschallbremseX;             //X-Richtung wird durch Ultraschallsensoren beeinflusst
- }
+   stellwert[0] =  stellwertSoll[0] + arucoZ;
+   stellwert[1] =  stellwertSoll[1] + arucoY;
+   stellwert[2] =  stellwertSoll[2];         
+  }
  
 
 
@@ -684,7 +595,7 @@ void nachrichtZusammensetzen() {
     Nachricht.concat(int(distanzHinten));
     Nachricht.concat("/");
 
-    Nachricht.concat(enableUltraschallSensorik);
+    Nachricht.concat("thisCouldBeYourMessage"); // was info if ultrasonic is switched on or off
     Nachricht.concat("/");
 
     Nachricht.concat(Notaus_OK);  //1 = alles ok 0 = notaus
