@@ -1,6 +1,7 @@
 from __future__ import print_function
 from threading import Thread
 from imutils.video import WebcamVideoStream
+from picamera2 import Picamera2
 from imutils.video import FPS
 import argparse
 import imutils
@@ -26,7 +27,10 @@ error_car = 0
 
 print("[INFO] sampling THREADED frames from webcam...")
 
-video_stream = WebcamVideoStream(src=0).start()
+#video_stream = WebcamVideoStream(src=0).start()
+video_stream = Picamera2()
+video_stream.start()
+
 
 fps = FPS().start()
 
@@ -35,7 +39,8 @@ serial_connection.start()
 
 while 1:
     
-    frame = video_stream.read()
+    #frame = video_stream.read()
+    frame = video_stream.capture_array()
 
     if frame is None:
         print("[ERROR]: No frame found.")
