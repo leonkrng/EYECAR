@@ -39,7 +39,7 @@ int raspiData[10];
 float driveValue[4];
 
 float anteilMotor[4];
-float minStickValRel = 20; // minimal relativ value of the analogsticks where a movement should be initiated
+float minStickValRel = 35; // minimal relativ value of the analogsticks where a movement should be initiated
 
 movementDirections movementCalculatedGamepad, movementCalculatedRaspi; // calculated movement from analog values, initialised with stop = 0 
 volatile float VL, VR, HL, HR;
@@ -492,59 +492,59 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
 
   case movementDirections::fw :
-    VLneu = 100;
-    VRneu = 100;
-    HLneu = 100;
-    HRneu = 100;
-    break;
-
-  case movementDirections::bw :
     VLneu = -100;
     VRneu = -100;
     HLneu = -100;
     HRneu = -100;
     break;
-  
-  case movementDirections::l :
-    VLneu = -100;
+
+  case movementDirections::bw :
+    VLneu = 100;
     VRneu = 100;
     HLneu = 100;
-    HRneu =-100;
+    HRneu = 100;
     break;
   
-  case movementDirections::r :
+  case movementDirections::l :
     VLneu = 100;
     VRneu = -100;
     HLneu = -100;
     HRneu = 100;
     break;
   
+  case movementDirections::r :
+    VLneu = -100;
+    VRneu = 100;
+    HLneu = 100;
+    HRneu = -100;
+    break;
+  
   case movementDirections::fwl :
-    VLneu = 100;
+    VLneu = -100;
     VRneu = 0;
     HLneu = 0;
-    HRneu = 100;
+    HRneu = -100;
     break;
 
   case movementDirections::fwr :
     VLneu = 0;
+    VRneu = -100;
+    HLneu = -100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::bwl :
+    VLneu = 0;
     VRneu = 100;
     HLneu = 100;
     HRneu = 0;
     break;
 
-  case movementDirections::bwl :
-    VLneu = -100;
+  case movementDirections::bwr :
+    VLneu = 100;
     VRneu = 0;
     HLneu = 0;
-    HRneu = -100;
-    break;
-
-  case movementDirections::bwr :
-    VLneu = 0;
-    VRneu = -100;
-    HLneu = -100;
-    HRneu = 0;
+    HRneu = 100;
     break;
 
   case movementDirections::tl :
@@ -562,48 +562,44 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
 
   case movementDirections::fwtl :
-    VLneu = 0;
-    VRneu = 100;
-    HLneu = 0;
-    HRneu = 100;
-    break;
-
-  case movementDirections::fwtr :
-    VLneu = 100;
-    VRneu = 0;
-    HLneu = 100;
-    HRneu = 0;
-    break;
-
-  case movementDirections::bwtl :
-    VLneu = 0;
-    VRneu = -100;
-    HLneu = 0;
-    HRneu = -100;
-    break;
-
-  case movementDirections::bwtr :
     VLneu = -100;
     VRneu = 0;
     HLneu = -100;
     HRneu = 0;
     break;
 
+  case movementDirections::fwtr :
+    VLneu = 0;
+    VRneu = -100;
+    HLneu = 0;
+    HRneu = -100;
+    break;
+
+  case movementDirections::bwtl :
+    VLneu = 100;
+    VRneu = 0;
+    HLneu = 100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::bwtr :
+    VLneu = 0;
+    VRneu = 100;
+    HLneu = 0;
+    HRneu = 100;
+    break;
+
   default:
     break;
   }
 
-  VL = VLneu;
-  VR = VRneu;
-  HL = HRneu;
-  HR = HRneu;
   
-  //float faktorAlt = 0.975, faktorNeu = 0.025;
+  float faktorAlt = 0.9, faktorNeu = 0.1; // first setting faktorAlt = 0.975, faktorNeu = 0.025;
 
-  //VL = faktorAlt * VL + faktorNeu * VLneu;
-  //VR = faktorAlt * VR + faktorNeu * VRneu;
-  //HL = faktorAlt * HL + faktorNeu * HLneu;
-  //HR = faktorAlt * HR + faktorNeu * HRneu;
+  VL = faktorAlt * VL + faktorNeu * VLneu;
+  VR = faktorAlt * VR + faktorNeu * VRneu;
+  HL = faktorAlt * HL + faktorNeu * HLneu;
+  HR = faktorAlt * HR + faktorNeu * HRneu;
  
   if(printctr == 100) {
     printctr = 0;
