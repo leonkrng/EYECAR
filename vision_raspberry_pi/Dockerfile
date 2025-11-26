@@ -24,9 +24,6 @@ RUN apt-get update && apt-get install -y python3 \
     cd ~/ros2_ws/src/ldrobot-lidar-ros2/scripts/ &&  \
     ./create_udev_rules.sh  
 
-#WORKDIR /root/ros2_ws
-#RUN git clone https://github.com/Myzhar/ldrobot-lidar-ros2.git src/ldrobot bash src/ldrobot-lidar-ros2/scripts/create_udev_rules.sh
-
 
 RUN rosdep update && \
     cd ~/ros2_ws/ && \
@@ -39,9 +36,6 @@ COPY . ./release/
 
 #COPY . /app/release/
 
-RUN chmod +x /app/release/Util/lidar_node_setup.sh
-ENTRYPOINT ["./release/Util/lidar_node_setup.sh"]
-
-# Start Python EYECAR-Application
-#CMD ["python3", "release/main.py"]
+RUN chmod +x /app/release/Util/docker_entry_script.sh
+ENTRYPOINT ["./release/Util/docker_entry_script.sh"]
 
