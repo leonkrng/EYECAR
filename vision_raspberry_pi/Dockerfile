@@ -6,8 +6,9 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install apt packages
-RUN apt-get update && apt-get install -y python3 python3-picamera2\
+RUN apt-get update && apt-get install -y python3 \
     python3-pip \
+    libpcap-dev \
     ffmpeg \
     libsm6 \
     libxext6 \

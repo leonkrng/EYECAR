@@ -2,16 +2,6 @@
 #set -e
 
 source /opt/ros/$ROS_DISTRO/setup.bash
-#source /root/ros2_ws/install/local_setup.bash
-
-ln -s /dev/ttyAMA0 /dev/ldlidar
-ls -la /dev/ldlidar
-
-#if [ -e /dev/ttyAMA9 ]; then
-#    ln -sf /dev/ttyAMA0 /dev/ldlidar
-#else
-#    echo "Warnung: /dev/ttyAMA0 nicht vorhanden!"
-#fi
 
 cd ~/ros2_ws/
 
@@ -20,14 +10,30 @@ rosdep install --from-paths src --ignore-src -r -y
 colcon build --symlink-install --cmake-args=-DCMAKE_BUILD_TYPE=Release
 
 source ~/ros2_ws/install/local_setup.bash
-exec ros2 launch ldlidar_node ldlidar_bringup.launch.py &
+
+echo "Starting front-node."
+rm ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
+#cp /app/release/ldlidar_front.yaml ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
+ros2 launch ldlidar_node ldlidar_bringup.launch.py node_name:=ldlidar_front params:=/app/release/ldlidar_front.yaml &
+ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link ldlidar_front &
 
 sleep 5
 
-ros2 launch ldlidar_node ldlidar_bringup.launch.py &
+ros2 lifecycle set /ldlidar_front configure
+ros2 lifecycle set /ldlidar_front activate
 
-ros2 lifecycle set /ldlidar_node configure
-ros2 lifecycle set /ldlidar_node activate
+sleep 5 
+
+echo "Starting rear-node."
+#rm ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
+#cp /app/release/ldlidar_rear.yaml ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
+ros2 launch ldlidar_node ldlidar_bringup.launch.py node_name:=ldlidar_rear params:=/app/release/ldlidar_front.yaml &
+ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link ldlidar_rear &
+
+sleep 5
+
+ros2 lifecycle set /ldlidar_rear configure
+ros2 lifecycle set /ldlidar_rear activate
 
 ROS2_PID=$!
 
