@@ -3,6 +3,7 @@
 #include <PCF8574.h>        //DB
 #include <RFM69.h>
 #include <Wire.h>
+#include <movementDirections.h>
 #define NETWORKID     119   // Must be the same for all nodes (0 to 255)
 #define MYNODEID      213   // My node ID (0 to 255)
 #define TONODEID      180   // Destination node ID (0 to 254, 255 = broadcast)
@@ -14,7 +15,10 @@
 //#define IS_RFM69HW
 RFM69 radio(25,4);   //SS-Pin, Interrupt-Pin
 
-#define debugLevel 1
+#define debugLevel -1 // standard debug: 1; debug of movement directions
+#define override 1 // when set to a value higher than 0, an override is used, otherwise the sticks are interpreted binary (not implemented)
+#define automatic 0 // 0: static use of gamepad for movement control, 1: static use of raspi for movement control,
+                    // 2: Mode can be switched with gamepad (not implemented)
 
 //DB Für Greifeinheit
 char fromSerialMon = ' ';
@@ -35,7 +39,9 @@ int raspiData[10];
 float driveValue[4];
 
 float anteilMotor[4];
+float minStickValRel = 35; // minimal relativ value of the analogsticks where a movement should be initiated
 
+movementDirections movementCalculatedGamepad, movementCalculatedRaspi; // calculated movement from analog values, initialised with stop = 0 
 volatile float VL, VR, HL, HR;
 float VLneu, VRneu, HLneu, HRneu;
 float stellwert[4], stellwertSoll[4];
@@ -52,7 +58,8 @@ int TIMEFACTOR = 50;      //Vorher: 50
 int MAXSPEED = 7;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
 int UPPERLIMITDELAY = 300;
 
-bool enableUltraschallSensorik = true;
+
+
 int stoppBremseVorne;
 
 
@@ -143,7 +150,7 @@ void setup() {
   Serial2.begin(115200);
 
   pinMode(DO_Dir1, OUTPUT);
-  pinMode(DO_Dir2, OUTPUT);
+   pinMode(DO_Dir2, OUTPUT);
   pinMode(DO_Dir3, OUTPUT);
   pinMode(DO_Dir4, OUTPUT);
   pinMode(DO_Step1, OUTPUT);
@@ -250,76 +257,6 @@ void pullData_RASPI(String dataInput) {
   //Serial.print("    ->"); Serial.print(raspiData[0]);Serial.print(" "); Serial.print(raspiData[1]);Serial.print(" "); Serial.println(raspiData[2]);
 }
 
-void ultraschallautomatik() {
-    if(enableUltraschallSensorik) {
-      /**
-      if(stellwertSoll[1] >= 0) {                                           //Wenn Knüppel nach vorne gedrückt wird zum vorwörtsfahren
-        if(distanzVorne > 10 && distanzVorne < 120) {                       //und der Ultraschallsensor mittlere Entfernung zu Objekt hat
-          UltrschallbremseY = 0.00864 * distanzVorne -0.0364;               //anteilig den Stellwert reduzieren bzw. den Faktor verringern
-        } else if(distanzVorne >= 120) {                                    //wenn kein Objekt in Sichtweite
-          UltrschallbremseY = 1;                                            //kein Reduktionsfaktor
-        } else {                                                            //wenn Objekt sehr sehr sehr nah dran
-          UltrschallbremseY = 0.05;                                         //auf Minimum reduzieren
-        } 
-      } else {                                                              //das selbe für Knüppel nach hinten/rückwärts aber mit anderen Sensoren
-        if(distanzHinten > 10 && distanzHinten < 120) {
-          UltrschallbremseY = 0.00864 * distanzHinten -0.0364;
-        } else if(distanzHinten >= 120) {
-          UltrschallbremseY = 1;
-        } else {
-          UltrschallbremseY = 0.05;
-        } 
-      }
-
-      **/
-
-      if(stellwertSoll[1] + arucoY >= 0) {                                           //Wenn Knüppel nach vorne gedrückt wird zum vorwörtsfahren
-        if(distanzVorne > 8 && distanzVorne < 70) {                       //und der Ultraschallsensor mittlere Entfernung zu Objekt hat
-          UltrschallbremseY = 0.0152 * distanzVorne -0.073;               //anteilig den Stellwert reduzieren bzw. den Faktor verringern
-        } else if(distanzVorne >= 70) {                                    //wenn kein Objekt in Sichtweite
-          UltrschallbremseY = 1;                                            //kein Reduktionsfaktor
-        } else {                                                            //wenn Objekt sehr sehr sehr nah dran
-          UltrschallbremseY = 0.05;                                         //auf Minimum reduzieren
-        } 
-      } else {                                                              //das selbe für Knüppel nach hinten/rückwärts aber mit anderen Sensoren
-        if(distanzHinten > 8 && distanzHinten < 70) {
-          UltrschallbremseY = 0.0152 * distanzHinten -0.073;
-        } else if(distanzHinten >= 70) {
-          UltrschallbremseY = 1;
-        } else {
-          UltrschallbremseY = 0.05;
-        } 
-      }
-
-
-
-
-
-      if(stellwertSoll[2] >= 0) {                                           //Das selbe nochmal für links/rechts
-        if(distanzRechts > 8 && distanzRechts < 70) {
-          UltrschallbremseX = 0.0152 * distanzRechts -0.073;
-        } else if(distanzRechts >= 70) {
-          UltrschallbremseX = 1;
-        } else {
-          UltrschallbremseX = 0.05;
-        } 
-      } else {
-        if(distanzLinks > 8 && distanzLinks < 70) {
-          UltrschallbremseX = 0.0152 * distanzLinks -0.073;
-        } else if(distanzLinks >= 70) {
-          UltrschallbremseX = 1;
-        } else {
-          UltrschallbremseX = 0.05;
-        } 
-      }
-     
-
-    } else {                        //Wenn Automatik deaktiviert ist
-      UltrschallbremseX = 1;        //Reduktionsfaktor inaktiv setzen
-      UltrschallbremseY = 1;        //daher Faktor 1
-    }
-}
-
 void arucoAutomatik() {
 
   if(arucoNavigationAktiv && !prevArucoNavigationAktiv) {
@@ -409,6 +346,31 @@ void Greifeinheit(){
   } else {sendToMega = 0;}
 }
 
+/*bool analogValBigEnough(volatile int stickValIn) {
+  // function retunrns true when the analog value of a stick exceeds a certain value
+  // implementation of a deadzone around the centerpoint of a stick
+  if (stickValIn / 1.275 >= 100 + (100 * minStickValRel)) { // when analog value is bigger then the upper limit
+    #if debugLevel == -1
+      Serial.print("analog input was noted: ");
+      Serial.println(stickValIn);
+    #endif
+    return true; 
+  } else if (stickValIn / 1.275 <= 100 - (100 * minStickValRel)) { // when analog value is lower then the upper limit
+    #if debugLevel == -2
+      Serial.print("analog input was noted: ");
+      Serial.println(stickValIn);
+    #endif
+    return true;
+  } else {
+    #if debugLevel == -3
+      Serial.print("analog input was not noted: ");
+      Serial.println(stickValIn);
+    #endif
+    return false; // no statement hit
+  }
+}*/
+
+
 void processData() {
    //Controlldata Struktur                                                         DB
    //controldata[0] Joystik 1 --> Links Rechts drehung
@@ -417,17 +379,13 @@ void processData() {
    //controldata[3] Joystik 2 --> Fahren Vor Zurück
    //controldata[4] Funktionstaste 1 --> Licht An/Aus
    //controldata[5] Funktionstaste 2 --> Autonome Aruko NAvigation AN/AUS
-   //controldata[6] Funktionstaste 3 --> Ultraschallerkennung AN/AUS
+   //controldata[6] Funktionstaste 3 --> not in use
    //controldata[7] Funktionstaste 4 --> Ohne Funktion (Vielleicht Auto GReifen AN/AUS)
    //controldata[8]-[11] Pfeiltasten?, Rücktasten? --> Greifeinheit
 
 
    //zuerst werden die Sonderfunktionen abgefragt, da sie evtl eingreifen müssen
  beleuchtungAktiv = controldata[4];
- if(enableUltraschallSensorik xor !controldata[6]) {
-   Serial.print("[INFO] ultraschallsensorik "); Serial.println(!controldata[6]);
- }
- enableUltraschallSensorik = !controldata[6];
 
  GreifeinheitHoch = controldata[8];
  GreifeinheitRunter = controldata[10];
@@ -442,61 +400,17 @@ void processData() {
    Serial.print("[INFO] Aruconavigation "); Serial.println(arucoNavigationAktiv);
  }
 
-
-
- if(receiverTimeout) {   //Wenn kein Sendersignal: 
-  /* if(recordPlaybackCounter < 100) {   //Wenn der Playback-Stack noch nicht abgefahren ist:
-     stellwert[0] = -stellwertRecord[recordPlaybackCounter][0];   //Playback der Aufzeichnung
-     stellwert[1] = -stellwertRecord[recordPlaybackCounter][1];   //Reinladen der Stellwerte aus dem Stack
-     stellwert[2] = -stellwertRecord[recordPlaybackCounter][2];   //Negieren, weil man ja rückwärts fahren will
-     
-   } else if(recordPlaybackCounter == 100) {
-     stellwert[0] = 0;               //Wenn der Playback-Stack zuende abgefahren ist:
-     stellwert[1] = 0;               //Fahrzeug stoppen.
-     stellwert[2] = 0;               //
-     Serial.println("[INFO] Route Playback complete");
-     recordPlaybackCounter++;
-   } */
-
+ if(receiverTimeout) {   // when there is no signal from the gamepad
   // HALT STOP!!!!1!1
-  stellwert[0] = 0; // Alle Bewegungswerte auf Null
+  stellwert[0] = 0; // set all movements values to zero 
   stellwert[1] = 0;
   stellwert[2] = 0;
- } else {                //Wenn Sendersignal vorhanden:      Daten vom Controldata-Array (Empfangene Daten) laden
-
-   stellwertSoll[0] = controldata[0] / 1.275 -100;                   //Drehung links/rechts      Wertebereich -100 - +100%
-   stellwertSoll[1] = controldata[3] / 1.275 -100;                   //Vor/rückwärts
-   stellwertSoll[2] = controldata[2] / 1.275 -100;                   //links/rechts
-
-
-   
-   arucoAutomatik();
-   ultraschallautomatik();
-
-   stellwert[0] =  stellwertSoll[0] + arucoZ;                        //Drehung wird nicht durch Ultraschallsensoren beeinflusst
-   stellwert[1] = (stellwertSoll[1] + arucoY)* UltrschallbremseY;    //Y-Richtung wird durch Ultraschallsensoren beeinflusst
-   stellwert[2] =  stellwertSoll[2] * UltrschallbremseX;             //X-Richtung wird durch Ultraschallsensoren beeinflusst
- }
- 
-
-
- //Serial.println(driveValue[0]);
- //LX, LY, RX, RY
- if(datenVomNano[1] > 0) {
-   distanzVorne = (distanzVorne * 0.999) + (0.001* datenVomNano[1]);
- }
- if(datenVomNano[2] > 0) {
-   distanzLinks = (distanzLinks * 0.999) + (0.001* datenVomNano[2]);
- }
- if(datenVomNano[3] > 0) {
-   distanzRechts = (distanzRechts * 0.999) + (0.001* datenVomNano[3]);
- }
- if(datenVomNano[4] > 0) {
-   distanzHinten = (distanzHinten * 0.999) + (0.001* datenVomNano[4]);
- }
-
-
- 
+ } else { // when there is a signal from the gamepad  
+    // load analogvals from gamepad and scaling (0 - 255  ->  -100 - 100)
+    stellwert[0] = controldata[0] / 1.275 - 100; // turning right (0) or left (255)
+    stellwert[2] = controldata[2] / 1.275 - 100; // moving right (0) or left (255)
+    stellwert[3] = controldata[3] / 1.275 - 100; // moving foward (0) or backward (255)
+  }
 }
 
 void recordStellwerte() {
@@ -515,15 +429,172 @@ void recordStellwerte() {
   }
 }
 
-void calcMecanumProportion() {
-  VLneu =  stellwert[0] + stellwert[1] + stellwert[2];       // Wertebereich -300 - +300
-  VRneu = -stellwert[0] + stellwert[1] - stellwert[2];
-  HLneu =  stellwert[0] + stellwert[1] - stellwert[2];
-  HRneu = -stellwert[0] + stellwert[1] + stellwert[2];
+//calulating the Movement direction out of the analog values coming from the gamepad
+// returns enum which determins the movement
+movementDirections calcMovementFromAnalogVals (float turning, float rightLeft, float fowardBackward) {
+  movementDirections movementCalculatedOut; // tmp - just an output
+
+  if (abs(turning) < minStickValRel and abs(rightLeft) < minStickValRel and abs(fowardBackward) >= minStickValRel) {
+    // just foward or backward
+    movementCalculatedOut = fowardBackward >= 0 ? movementDirections::fw : movementDirections::bw;
+
+  } else if (abs(turning) < minStickValRel and abs(rightLeft) >= minStickValRel and abs(fowardBackward) < minStickValRel) {
+    // just right or left
+    movementCalculatedOut = rightLeft >= 0 ? movementDirections::r : movementDirections::l;
+
+  } else if (abs(turning) >= minStickValRel and abs(rightLeft) < minStickValRel and abs(fowardBackward) < minStickValRel) {
+    // just turning left or turning right
+    movementCalculatedOut = turning >= 0 ? movementDirections::tr : movementDirections::tl;
+
+  } else if ((abs(turning) < minStickValRel and abs(rightLeft) >= minStickValRel and abs(fowardBackward) >= minStickValRel)
+            or (abs(turning) >= minStickValRel and abs(rightLeft) >= minStickValRel and abs(fowardBackward) >= minStickValRel)) {
+    // diagonal movement or an input in all movement types
+    // -> turning will be ignored
+    if (fowardBackward >= 0) { //foward 
+      movementCalculatedOut = rightLeft >= 0 ? movementDirections::fwr : movementDirections::fwl;
+    } else { // backward
+      movementCalculatedOut = rightLeft >= 0 ? movementDirections::bwr : movementDirections::bwl;
+    }
+  } else if (abs(turning) >= minStickValRel and abs(rightLeft) < minStickValRel and abs(fowardBackward) >= minStickValRel) {
+    // foward/backward with turning 
+    if (fowardBackward >= 0) { //foward 
+      movementCalculatedOut = turning >= 0 ? movementDirections::fwtr : movementDirections::fwtl;
+    } else { // backward
+      movementCalculatedOut = turning >= 0 ? movementDirections::bwtr : movementDirections::bwtl;
+    }
+  } else { // all values are below the set limit or unknown input
+      movementCalculatedOut = movementDirections::stop;
+  }
+
+  #if debugLevel == -1
+    Serial.print("turning / left/right / foward/backward / movement direction: ");
+    Serial.print(turning); Serial.print(" ");
+    Serial.print(rightLeft); Serial.print(" ");
+    Serial.print(fowardBackward); Serial.print(" ");
+    Serial.println(movementDirectionNames[static_cast<int>(movementCalculatedOut)]);
+  #endif
+
+  return movementCalculatedOut;
+}
+
+void calcMecanumProportion(movementDirections movementCalculatedGamepad, movementDirections movementCalculatedRaspi) {
+#if automatic == 0
+  switch (movementCalculatedGamepad)
+#elif automatic == 1
+  switch (movementCalculatedRaspi)
+#endif
+  {
+  case movementDirections::stop :
+    VLneu = 0;
+    VRneu = 0;
+    HLneu = 0;
+    HRneu = 0;
+    break;
+
+  case movementDirections::fw :
+    VLneu = -100;
+    VRneu = -100;
+    HLneu = -100;
+    HRneu = -100;
+    break;
+
+  case movementDirections::bw :
+    VLneu = 100;
+    VRneu = 100;
+    HLneu = 100;
+    HRneu = 100;
+    break;
   
-  //float faktorAlt = 0.9997, faktorNeu = 0.0003;
-  //float faktorAlt = 0.95, faktorNeu = 0.05;
-  float faktorAlt = 0.975, faktorNeu = 0.025;
+  case movementDirections::l :
+    VLneu = 100;
+    VRneu = -100;
+    HLneu = -100;
+    HRneu = 100;
+    break;
+  
+  case movementDirections::r :
+    VLneu = -100;
+    VRneu = 100;
+    HLneu = 100;
+    HRneu = -100;
+    break;
+  
+  case movementDirections::fwl :
+    VLneu = -100;
+    VRneu = 0;
+    HLneu = 0;
+    HRneu = -100;
+    break;
+
+  case movementDirections::fwr :
+    VLneu = 0;
+    VRneu = -100;
+    HLneu = -100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::bwl :
+    VLneu = 0;
+    VRneu = 100;
+    HLneu = 100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::bwr :
+    VLneu = 100;
+    VRneu = 0;
+    HLneu = 0;
+    HRneu = 100;
+    break;
+
+  case movementDirections::tl :
+    VLneu = -100;
+    VRneu = 100;
+    HLneu = -100;
+    HRneu = 100;
+    break;
+
+  case movementDirections::tr :
+    VLneu = 100;
+    VRneu = -100;
+    HLneu = 100;
+    HRneu = -100;
+    break;
+
+  case movementDirections::fwtl :
+    VLneu = -100;
+    VRneu = 0;
+    HLneu = -100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::fwtr :
+    VLneu = 0;
+    VRneu = -100;
+    HLneu = 0;
+    HRneu = -100;
+    break;
+
+  case movementDirections::bwtl :
+    VLneu = 100;
+    VRneu = 0;
+    HLneu = 100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::bwtr :
+    VLneu = 0;
+    VRneu = 100;
+    HLneu = 0;
+    HRneu = 100;
+    break;
+
+  default:
+    break;
+  }
+
+  
+  float faktorAlt = 0.9, faktorNeu = 0.1; // first setting faktorAlt = 0.975, faktorNeu = 0.025;
 
   VL = faktorAlt * VL + faktorNeu * VLneu;
   VR = faktorAlt * VR + faktorNeu * VRneu;
@@ -532,9 +603,6 @@ void calcMecanumProportion() {
  
   if(printctr == 100) {
     printctr = 0;
-    //Serial.print(distanzVorne); Serial.print("    "); Serial.println(stoppBremseVorne);
-  //Serial.print(VL);Serial.print("   "); Serial.print(VR); Serial.print("    "); Serial.print(HL); Serial.print("    "); Serial.println(HR);
-  //Serial.println(datenVomNano[1]);
   } else {
     printctr++;
   }
@@ -549,34 +617,23 @@ void calcMecanumProportion() {
   anteilMotor[2] = HL;
   anteilMotor[3] = HR;
 
-  for(int i = 0; i<= 3; i++) {
-    if(abs(anteilMotor[i]) > 100) {
-        driveValue[i] = MAXSPEED;                                                                  //Vorher:10
-      } else if(abs(anteilMotor[i]) > 13) {
-        driveValue[i] = (100 / abs(anteilMotor[i])) * TIMEFACTOR - TIMEFACTOR + MAXSPEED;
-        if(driveValue[i] > UPPERLIMITDELAY) {
-          driveValue[i] = UPPERLIMITDELAY;
-        }
-      } else {
-        driveValue[i] = 0;
+  for(int i = 0; i <= 3; i++) {
+    if(abs(anteilMotor[i]) >= 100) { // no override at the moment
+      driveValue[i] = MAXSPEED; //Vorher:10
+                                                                       
+    } else if(abs(anteilMotor[i]) > 13) {
+      driveValue[i] = (100 / abs(anteilMotor[i])) * TIMEFACTOR - TIMEFACTOR + MAXSPEED;
+
+      if(driveValue[i] > UPPERLIMITDELAY) {
+        driveValue[i] = UPPERLIMITDELAY;
       }
-      interruptGrenzwert[i] = driveValue[i];
-  }
-  
-      
-      
-      /**for(int i = 0; i<= 3; i++) {         //Keine Ahnung wofür das da ist
-        if(genClock[i] > 100/1) {
-          
-          genClock[i] =0;
-        }
-      }**/
 
-      
+    } else {
+      driveValue[i] = 0;
+    }
 
-
-
- 
+    interruptGrenzwert[i] = driveValue[i];
+  } 
 }
 
 void communicationArduinoNano() {
@@ -684,7 +741,7 @@ void nachrichtZusammensetzen() {
     Nachricht.concat(int(distanzHinten));
     Nachricht.concat("/");
 
-    Nachricht.concat(enableUltraschallSensorik);
+    Nachricht.concat("thisCouldBeYourMessage"); // was info if ultrasonic is switched on or off
     Nachricht.concat("/");
 
     Nachricht.concat(Notaus_OK);  //1 = alles ok 0 = notaus
@@ -778,10 +835,11 @@ void loop() {
   }
 
    
-   processData();
-   Greifeinheit();
-   calcMecanumProportion();
-   communicationArduinoNano();
+   processData(); // load data from gamepade
+   Greifeinheit(); // do stuff with the gripping unit
+   movementCalculatedGamepad = calcMovementFromAnalogVals(stellwert[0], stellwert[2], stellwert[3]); // calculate the movement direction
+   calcMecanumProportion(movementCalculatedGamepad, movementCalculatedRaspi); // calculate the proportion of the Mecanum wheels for the given movement direction
+   communicationArduinoNano(); // 
   
 
   
@@ -799,14 +857,6 @@ void loop() {
     nachrichtZusammensetzen();
     Serial2.println(Nachricht);
     lastMillisRaspi = currentMillis;
-
-   // Serial.print("stellwertSoll[1]:"); Serial.print(stellwertSoll[1]); Serial.print(" distanzVorne "); Serial.print(distanzVorne); Serial.print("  usb:");  Serial.print(UltrschallbremseY); Serial.println();
-      //Serial.println(controldata[6]);
-
-      
-      // Serial.print(" 24V: "); Serial.print(analogRead(AI_SpgMess_24V)); Serial.print("  5V: ");  Serial.print(analogRead(AI_SpgMess_5V)); Serial.println();
-
-      //Serial.print("Datenvomnano: "); Serial.print(datenVomNano[1]); Serial.print(" DistanzVorne: "); Serial.print(distanzVorne); Serial.print(" UltrschallbremseY: "); Serial.println(UltrschallbremseY);
   }
 
   if(currentMillis - lastMillis50MS > 50) {
