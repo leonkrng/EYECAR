@@ -1,7 +1,7 @@
 from __future__ import print_function
 from threading import Thread
 from imutils.video import WebcamVideoStream
-from picamera2 import Picamera2
+#from picamera2 import Picamera2
 from imutils.video import FPS
 import argparse
 import imutils
@@ -27,10 +27,9 @@ error_car = 0
 
 print("[INFO] sampling THREADED frames from webcam...")
 
-#video_stream = WebcamVideoStream(src=0).start()
-video_stream = Picamera2()
-video_stream.start()
-
+gst_pipeline = ("udpsrc port=8000 ! jpegdec ! videoconvert ! appsink drop=true sync=false max-buffers=1")
+cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
 fps = FPS().start()
 
@@ -38,13 +37,11 @@ serial_connection = communication.serial_connection.SerialConnection()
 serial_connection.start()
 
 while 1:
-    
-    #frame = video_stream.read()
-    frame = video_stream.capture_array()
+    ret, frame = cap.read()
 
-    if frame is None:
+    if not ret:
         print("[ERROR]: No frame found.")
-        continue
+        frame = cv2.imread("Schnittchen.jpg")
 
     frame = cv2.resize(frame, (832, 600))
 

@@ -14,8 +14,36 @@ RUN apt-get update && apt-get install -y python3 \
     libxext6 \
     libudev-dev \
     python3-gpiozero \
+    build-essential \
+    cmake \
+    libgtk-3-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-tools \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    python3-dev \
+    pkg-config \
     python-is-python3 && \
     pip install --no-cache-dir -r requirements.txt
+
+# Setup opencv with GStreamer support
+RUN git clone https://github.com/opencv/opencv.git /opt/opencv && \
+    cd /opt/opencv && \
+    mkdir build && \
+    cd build && \
+    cmake -D CMAKE_BUILD_TYPE=Release \
+          -D CMAKE_INSTALL_PREFIX=/usr/local \
+          -D WITH_GSTREAMER=ON \
+          -D BUILD_opencv_python3=ON \
+          .. && \
+    make -j$(nproc) && \
+    make install
 
 # Ros2 lidar driver
  RUN mkdir -p ~/ros2_ws/ && \
@@ -34,8 +62,7 @@ RUN . /opt/ros/$ROS_DISTRO/setup.sh && colcon build --symlink-install --cmake-ar
 
 COPY . ./release/
 
-#COPY . /app/release/
 
-RUN chmod +x /app/release/Util/docker_entry_script.sh
-ENTRYPOINT ["./release/Util/docker_entry_script.sh"]
+RUN chmod +x /app/release/util/docker_entry_script.sh
+ENTRYPOINT ["./release/util/docker_entry_script.sh"]
 
