@@ -3,7 +3,11 @@
 #include <PCF8574.h>        //DB
 #include <RFM69.h>
 #include <Wire.h>
-#include <movementDirections.h>
+#include "movementDirections.h"
+#include "MotorByte.h"
+#include "CtrlByte.h"
+#include "Buttons.h"
+
 #define NETWORKID     119   // Must be the same for all nodes (0 to 255)
 #define MYNODEID      213   // My node ID (0 to 255)
 #define TONODEID      180   // Destination node ID (0 to 254, 255 = broadcast)
@@ -15,15 +19,19 @@
 //#define IS_RFM69HW
 RFM69 radio(25,4);   //SS-Pin, Interrupt-Pin
 
-#define debugLevel -1 // standard debug: 1; debug of movement directions
+#define debugLevel 0 // standard debug: 1; debug of movement directions
 #define override 1 // when set to a value higher than 0, an override is used, otherwise the sticks are interpreted binary (not implemented)
 #define automatic 0 // 0: static use of gamepad for movement control, 1: static use of raspi for movement control,
                     // 2: Mode can be switched with gamepad (not implemented)
 
 //DB Für Greifeinheit
 char fromSerialMon = ' ';
-byte sendToMega = 0;
+CtrlByte sendToMega; // Byte for controling gripper and linear unit
 bool GreifeinheitHoch, GreifeinheitRunter, GreiferAuf, GreiferZu;
+Buttons buttonHoch(&GreifeinheitHoch);
+Buttons buttonRunter(&GreifeinheitRunter);
+Buttons buttonAuf(&GreiferAuf);
+Buttons buttonZu(&GreiferZu);
 
 String datenstring;
 unsigned long receivedLast;
@@ -137,9 +145,7 @@ void IRAM_ATTR onTime() {
    portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-void setup() {
-  
-  
+void setup() {  
   Serial.begin(115200);
   Serial.println("----------------"); 
   Serial.println("Startup");
@@ -150,7 +156,7 @@ void setup() {
   Serial2.begin(115200);
 
   pinMode(DO_Dir1, OUTPUT);
-   pinMode(DO_Dir2, OUTPUT);
+  pinMode(DO_Dir2, OUTPUT);
   pinMode(DO_Dir3, OUTPUT);
   pinMode(DO_Dir4, OUTPUT);
   pinMode(DO_Step1, OUTPUT);
@@ -335,40 +341,14 @@ void arucoAutomatik() {
 }
 
 void Greifeinheit(){
-  if(GreifeinheitHoch and !GreifeinheitRunter){
-    sendToMega = 2;
-  } else if (GreifeinheitRunter and !GreifeinheitHoch ){
-    sendToMega = 1;
-  } else if (GreiferAuf and !GreiferZu){
-    sendToMega = 4;
-  } else if (GreiferZu and !GreiferAuf){
-    sendToMega = 3;
-  } else {sendToMega = 0;}
-}
+  sendToMega.linkBits(moveUp, moveDown, buttonHoch.getImpulse(), buttonRunter.getImpulse());
+  sendToMega.linkBits(openGripper, closeGripper, buttonAuf.getImpulse(), buttonZu.getImpulse());
 
-/*bool analogValBigEnough(volatile int stickValIn) {
-  // function retunrns true when the analog value of a stick exceeds a certain value
-  // implementation of a deadzone around the centerpoint of a stick
-  if (stickValIn / 1.275 >= 100 + (100 * minStickValRel)) { // when analog value is bigger then the upper limit
-    #if debugLevel == -1
-      Serial.print("analog input was noted: ");
-      Serial.println(stickValIn);
-    #endif
-    return true; 
-  } else if (stickValIn / 1.275 <= 100 - (100 * minStickValRel)) { // when analog value is lower then the upper limit
-    #if debugLevel == -2
-      Serial.print("analog input was noted: ");
-      Serial.println(stickValIn);
-    #endif
-    return true;
-  } else {
-    #if debugLevel == -3
-      Serial.print("analog input was not noted: ");
-      Serial.println(stickValIn);
-    #endif
-    return false; // no statement hit
-  }
-}*/
+  Serial.print(sendToMega.readBit(moveUp));
+  Serial.print(sendToMega.readBit(moveDown));
+  Serial.print(sendToMega.readBit(openGripper));
+  Serial.println(sendToMega.readBit(closeGripper));
+}
 
 
 void processData() {
@@ -381,7 +361,7 @@ void processData() {
    //controldata[5] Funktionstaste 2 --> Autonome Aruko NAvigation AN/AUS
    //controldata[6] Funktionstaste 3 --> not in use
    //controldata[7] Funktionstaste 4 --> Ohne Funktion (Vielleicht Auto GReifen AN/AUS)
-   //controldata[8]-[11] Pfeiltasten?, Rücktasten? --> Greifeinheit
+   //controldata[8]-[11]  Rücktasten? --> Greifeinheit
 
 
    //zuerst werden die Sonderfunktionen abgefragt, da sie evtl eingreifen müssen
@@ -506,17 +486,17 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
   
   case movementDirections::l :
-    VLneu = 100;
-    VRneu = -100;
-    HLneu = -100;
-    HRneu = 100;
-    break;
-  
-  case movementDirections::r :
     VLneu = -100;
     VRneu = 100;
     HLneu = 100;
     HRneu = -100;
+    break;
+  
+  case movementDirections::r :
+    VLneu = 100;
+    VRneu = -100;
+    HLneu = -100;
+    HRneu = 100;
     break;
   
   case movementDirections::fwl :
@@ -777,9 +757,15 @@ void recvWithEndMarker() {
 
 
 void loop() {
+  buttonHoch.update();
+  buttonZu.update();
+  buttonRunter.update();
+  buttonAuf.update();
+
   //DB Erweiterung Greifeinheit Kommandos Senden
   Wire.beginTransmission(20); // transmit to device #4
-  Wire.write(sendToMega);              // sends one byte  
+  uint8_t tmpSendToMega = sendToMega.getByte();
+  Wire.write(tmpSendToMega); // sends one byte  
   Wire.endTransmission();    // stop transmitting
 
 
