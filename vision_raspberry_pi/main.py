@@ -1,7 +1,6 @@
 from __future__ import print_function
 from threading import Thread
 from imutils.video import WebcamVideoStream
-#from picamera2 import Picamera2
 from imutils.video import FPS
 import argparse
 import imutils
@@ -11,12 +10,13 @@ import serial
 import numpy as np
 import time
 import cv2
-
 import aruco_navigation
 import communication
 import lidar_sensor
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import LaserScan
 import overlay
-
 
 camera_resolution = [832, 600]  # Camera resolution [x, y]
 navigation_list = [1, 2, 3, 4]
@@ -36,12 +36,18 @@ fps = FPS().start()
 serial_connection = communication.serial_connection.SerialConnection()
 serial_connection.start()
 
+# Initialize lidar-node
+rclpy.init()
+lidar_front = lidar_sensor.lidar_subscriber.LidarSubscriber()
+rclpy.spin(lidar_front)
+
+
 while 1:
     ret, frame = cap.read()
 
     if not ret:
         print("[ERROR]: No frame found.")
-        frame = cv2.imread("Schnittchen.jpg")
+        frame = cv2.imread("no_signal.jpg")
 
     frame = cv2.resize(frame, (832, 600))
 
@@ -79,3 +85,5 @@ while 1:
 cv2.destroyAllWindows()
 video_stream.stop()
 serial_connection.stop()
+lidar_front.destroy_node()
+rclpy.shutdown()

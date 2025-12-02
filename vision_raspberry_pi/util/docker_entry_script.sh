@@ -13,32 +13,33 @@ source ~/ros2_ws/install/local_setup.bash
 
 echo "Starting front-node."
 rm ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
-#cp /app/release/ldlidar_front.yaml ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
-ros2 launch ldlidar_node ldlidar_bringup.launch.py node_name:=ldlidar_front params:=/app/release/ldlidar_front.yaml &
-ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link ldlidar_front &
+cp /app/release/ldlidar_front.yaml ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
+ros2 launch ldlidar_node ldlidar_bringup.launch.py &
+#ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link ldlidar_front &
 
 sleep 5
 
-ros2 lifecycle set /ldlidar_front configure
-ros2 lifecycle set /ldlidar_front activate
+ros2 lifecycle set /ldlidar_node configure
+ros2 lifecycle set /ldlidar_node activate
 
-sleep 5 
+#sleep 5 
 
-echo "Starting rear-node."
+#echo "Starting rear-node."
 #rm ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
 #cp /app/release/ldlidar_rear.yaml ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
-ros2 launch ldlidar_node ldlidar_bringup.launch.py node_name:=ldlidar_rear params:=/app/release/ldlidar_front.yaml &
-ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link ldlidar_rear &
+#ros2 launch ldlidar_node ldlidar_bringup.launch.py node_name:=ldlidar_rear params:=/app/release/ldlidar_front.yaml &
+#ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link ldlidar_rear &
 
-sleep 5
+#sleep 5
 
-ros2 lifecycle set /ldlidar_rear configure
-ros2 lifecycle set /ldlidar_rear activate
+#ros2 lifecycle set /ldlidar_rear configure
+#ros2 lifecycle set /ldlidar_rear activate
 
 ROS2_PID=$!
 
 if [ "$1" == "bash" ]; then
 	echo "Start interactive shell..."
+  cd /app/
 	exec bash
 else 
 	echo "Start Python-Application..."

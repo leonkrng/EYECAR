@@ -33,7 +33,10 @@ RUN apt-get update && apt-get install -y python3 \
     pip install --no-cache-dir -r requirements.txt
 
 # Setup opencv with GStreamer support
-RUN git clone https://github.com/opencv/opencv.git /opt/opencv && \
+RUN git config --global http.retry 10
+RUN git config --global http.lowSpeedLimit 1
+RUN git config --global http.lowSpeedTime 600
+RUN git clone --depth 1 https://github.com/opencv/opencv.git /opt/opencv && \
     cd /opt/opencv && \
     mkdir build && \
     cd build && \
