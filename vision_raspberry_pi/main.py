@@ -1,10 +1,10 @@
 from __future__ import print_function
-from threading import Thread
 from imutils.video import WebcamVideoStream
 from imutils.video import FPS
 import argparse
 import imutils
 import cv2.aruco as aruco
+import threading
 from gpiozero import CPUTemperature
 import serial
 import numpy as np
@@ -15,6 +15,7 @@ import communication
 import lidar_sensor
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import LaserScan
 import overlay
 
@@ -38,8 +39,15 @@ serial_connection.start()
 
 # Initialize lidar-node
 rclpy.init()
+executor = MultiThreadedExecutor()
 lidar_front = lidar_sensor.lidar_subscriber.LidarSubscriber()
-rclpy.spin(lidar_front)
+executor.add_node(lidar_front)
+
+lidar_front_thread = threading.Thread(target=executor.spin, daemon=True)
+lidar_front_thread.start()
+
+#rclpy.init()
+#rclpy.spin(lidar_front)
 
 
 while 1:
@@ -83,7 +91,7 @@ while 1:
 
 # Cleanup
 cv2.destroyAllWindows()
-video_stream.stop()
+# video_stream.stop()
 serial_connection.stop()
 lidar_front.destroy_node()
 rclpy.shutdown()
