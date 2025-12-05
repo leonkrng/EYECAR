@@ -1,9 +1,9 @@
 {
-  "name": "PressureSesnsor",
+  "name": "HX711",
   "version": "1.0.0",
   "author": "Daniel Grunau",
   "license": "Proprietär",
-  "description": "nutzen einer eines HX711 Messverstärkers als Drucksensor",
+  "description": "Arbeiten mit HX711",
   "keywords": ["esp32", "arduino"],
   "frameworks": ["arduino"],
   "platforms": ["espressif32", "atmelsam", "atmelavr"],

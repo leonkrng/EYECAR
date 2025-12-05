@@ -765,6 +765,7 @@ void loop() {
   //DB Erweiterung Greifeinheit Kommandos Senden
   Wire.beginTransmission(20); // transmit to device #4
   uint8_t tmpSendToMega = sendToMega.getByte();
+  Serial.print(tmpSendToMega);
   Wire.write(tmpSendToMega); // sends one byte  
   Wire.endTransmission();    // stop transmitting
 

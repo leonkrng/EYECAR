@@ -8,7 +8,7 @@
 
 #include "PressureSensor.h"
 
-#define debug 0
+#define debug 1
 
 PressureSensor::PressureSensor (uint8_t iDOUT_PIN, uint8_t iSCK_PIN) {
     iDoutPin = iDOUT_PIN; // read Pins
@@ -17,7 +17,7 @@ PressureSensor::PressureSensor (uint8_t iDOUT_PIN, uint8_t iSCK_PIN) {
 
 void PressureSensor::SetupSensor() { // scalingfactor is known
     #if (debug == 1)
-        Serial.begin(9600); // start serial communication for possible debugging
+        Serial.begin(115200); // start serial communication for possible debugging
     #endif
     hx711.begin(iDoutPin, iSckPin); // start platine
 

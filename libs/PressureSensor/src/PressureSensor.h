@@ -32,6 +32,10 @@ public:
   // setup version with Determination of scaling -- NO IMPLEMENTATION YET (not needed?)
   //void SetupSensor(float fPredeterminedWeight);
 
+
+  // returns the act force value measured
+  float GetForce(); 
+
 private:
     uint8_t iDoutPin; // needed Pins
     uint8_t iSckPin;
@@ -45,7 +49,9 @@ private:
     const int iSetupNum = 20; // Number of internal function calls during the setuo routine
     const int iMeasurementNum = 5; // Number of internal function calls during measurement
     
-    const float fMaximumPushingForce = 100000; // treshold value in gramms at which the clamping movement is stopped
+    const float fMaximumPushingForce = 50000; // treshold value in gramms at which the clamping movement is stopped
+
+    bool setupDone;
 };
 
 
