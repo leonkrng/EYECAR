@@ -51,11 +51,13 @@ lidar_front_thread.start()
 
 
 while 1:
-    ret, frame = cap.read()
 
-    if not ret:
+    if not cap.isOpened():
         print("[ERROR]: No frame found.")
         frame = cv2.imread("no_signal.jpg")
+
+    ret, frame = cap.read()
+
 
     frame = cv2.resize(frame, (832, 600))
 
