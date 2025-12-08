@@ -25,8 +25,6 @@ from main_node import MainNode
 camera_resolution = [832, 600]  # Camera resolution [x, y]
 navigation_list = [1, 2, 3, 4]
 max_marker_size = 0.4  # maximum marker size in relation to camera x-resoulution (0-1)
-prev_aruco_navigation_active = 0  # for flank detection
-error_car = 0
 
 # Camera stream pipeline
 gst_pipeline = ("udpsrc port=8000 ! jpegdec ! videoconvert ! appsink drop=true sync=false max-buffers=1")
