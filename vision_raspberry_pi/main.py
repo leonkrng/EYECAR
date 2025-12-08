@@ -55,8 +55,9 @@ while 1:
     if not cap.isOpened():
         print("[ERROR]: No frame found.")
         frame = cv2.imread("no_signal.jpg")
+    else
+        ret, frame = cap.read()
 
-    ret, frame = cap.read()
 
 
     frame = cv2.resize(frame, (832, 600))
