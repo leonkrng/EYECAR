@@ -77,7 +77,11 @@ while 1:
     serial_publisher.publish(message)
 
     # Draw overlay
-    overlay.draw_overlay.draw_overlay(frame, main_node.telemetry_data, navigation_list, main_node.actual_ID, main_node.prev_aruco_navigation_active)
+    overlay.draw_overlay.draw_overlay(frame,
+                                      main_node.telemetry_data,
+                                      navigation_list,
+                                      main_node.actual_ID,
+                                      main_node.prev_aruco_navigation_active)
 
     # If the `q` key was pressed, break from the loop
     key = cv2.waitKey(1) & 0xFF
