@@ -1,7 +1,7 @@
 import serial 
 import socket
 import rclpy
-from sclpy.node import Node
+from rclpy.node import Node
 from std_msgs.msg import String
 
 class SerialConnectionNode(Node):
@@ -47,7 +47,7 @@ class SerialConnectionNode(Node):
             if len(line) > 0:
                 # Publish
                 message = String()
-                .data = line
+                data = line
                 self.telemetry_pub.publish(message)
         except Exception as e:
             self.get_logger().error(f"Serial read failed: {e}")

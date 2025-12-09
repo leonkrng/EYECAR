@@ -47,10 +47,6 @@ executor.add_node(lidar_front)
 serial_node = SerialConnectionNode()
 executor.add_node(serial_node)
 
-# Start executor
-executor_thread= threading.Thread(target=executor.spin, daemon=True)
-executor_thread.start()
-
 while 1:
 
     if not cap.isOpened():
@@ -58,6 +54,8 @@ while 1:
         frame = cv2.imread("no_signal.jpg")
     else:
         ret, frame = cap.read()
+
+    executor.spin_once(timeout_sec=0.001)
 
     frame = cv2.resize(frame, (832, 600))
 
@@ -71,8 +69,8 @@ while 1:
 
     # Publish serial data
     message = String()
-    message.data = f"1/7/" + str(command) + "/8\r\n"
-    serial_publisher.publish(message)
+    message.data = f"1/7/" + str(command.value) + "/8\r\n"
+    main_node.serial_write_pub.publish(message)
 
     # Draw overlay
     overlay.draw_overlay.draw_overlay(frame,
@@ -89,6 +87,8 @@ while 1:
         break
 
 # Cleanup
+executor.shutdown()
+executor_thread.join(timeout=1)
 lidar_front.destroy_node()
 main_node.destroy_node()
 serial_node.destroy_node()
