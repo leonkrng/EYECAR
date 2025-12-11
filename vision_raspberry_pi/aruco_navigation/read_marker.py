@@ -7,11 +7,11 @@ from aruco_navigation import calc_navigation
 from aruco_navigation import movement_enum
 
 def read_marker(frame, 
-                prev_aruco_navigation_active,
-                navigation_list,
-                max_marker_size,
-                camera_resolution,
-                actual_ID):
+                prev_aruco_navigation_active=0,
+                navigation_list=[1, 2, 3, 4],
+                max_marker_size=0.4,
+                camera_resolution=[832, 600],
+                actual_ID=0):
 
     grayscale_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -56,4 +56,4 @@ def read_marker(frame,
             else:
                 command = MovementEnum.NO_MARKER
 
-    return command
+    return (command, frame)
