@@ -8,7 +8,9 @@ class CameraNode(Node):
     def __init__(self):
         super().__init__('camera_node')
 
-        self.image_raw_publisher = self.create_publisher(Image, 'camera/image_raw', 10)
+        self.frame_raw_publisher = self.create_publisher(Image,
+                                                         'camera/frame_raw',
+                                                         10)
 
         self.bridge = CvBridge()
 
