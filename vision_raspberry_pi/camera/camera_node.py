@@ -8,7 +8,7 @@ class CameraNode(Node):
     def __init__(self):
         super().__init__('camera_node')
 
-        self.pub = self.create_publisher(Image, 'camera/image_raw', 10)
+        self.image_raw_publisher = self.create_publisher(Image, 'camera/image_raw', 10)
 
         self.bridge = CvBridge()
 
@@ -19,9 +19,9 @@ class CameraNode(Node):
         self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
-        self.timer = self.create_timer(0.02, self.publish_frame)
+        self.timer = self.create_timer(0.02, self.publish_image_raw)
 
-    def publish_frame(self):
+    def publish_image_raw(self):
         if self.cap.isOpened():
             ret, frame = self.cap.read()
             if not ret:
@@ -36,4 +36,4 @@ class CameraNode(Node):
             return
 
         msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
-        self.pub.publish(msg)
+        self.image_raw_publisher.publish(msg)
