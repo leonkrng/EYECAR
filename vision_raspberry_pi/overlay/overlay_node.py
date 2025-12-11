@@ -6,7 +6,7 @@ from std_msgs.msg import Bool
 import cv2
 from vision_raspberry_pi.overlay.draw_overlay import draw_overlay
 
-class OverayNode(Node):
+class OverlayNode(Node):
     def __init__(self):
         super().__init__('aruco_node')
 
