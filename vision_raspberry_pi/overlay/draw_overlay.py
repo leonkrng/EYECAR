@@ -1,6 +1,10 @@
 import cv2 
 
-def draw_overlay(frame, telemetry_data, navigation_list, actual_ID, prev_aruco_navigation_active):
+def draw_overlay(frame,
+                 telemetry_data=22*[-1],
+                 navigation_list=[1, 2, 3, 4],
+                 actual_ID=0,
+                 prev_aruco_navigation_active=0):
     try:
         
             cv2.rectangle(frame, (15,20), (275,190), (50,50,50), -1) #grauer Hintergrund Telemetriedaten
