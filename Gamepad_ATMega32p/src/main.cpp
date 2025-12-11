@@ -13,16 +13,48 @@
 #include <spi4teensy3.h>
 #endif
 
-#include "hidjoystickrptparser.h"
+#define DEBUG_SERIAL 1
+//#include "hidjoystickrptparser.h"
 
 USB Usb;
 USBHub Hub(&Usb);
 HIDUniversal Hid(&Usb);
-JoystickEvents JoyEvents;
-JoystickReportParser Joy(&JoyEvents);
+//JoystickEvents JoyEvents;
+//JoystickReportParser Joy(&JoyEvents);
 
 
 int stickLX, stickLY, stickRX, stickRY;
+bool sonderfunktionen[12];
+
+
+class EasySMX_Parser : public HIDReportParser {
+public:
+  void Parse(USBHID *hid, bool is_rpt_id, uint8_t len, uint8_t *buf) override {
+    if (len < 8) return;   // Sicherheitscheck
+
+    // Achsdaten
+    stickLX = buf[3];
+    stickLY = buf[4];
+    stickRX = buf[5];
+    stickRY = buf[6];
+
+    // Buttonbits in Byte 1 (buf[1]), Bitnummerierung ab 1, LSB zuerst
+    for(int i=1; i<=8; i++) {
+      sonderfunktionen[i] = buf[0] & (1 << (i - 1));
+    }
+
+    #if DEBUG_SERIAL
+      Serial.print(stickLX); Serial.print("/");
+       Serial.print(stickLY);Serial.print("/");
+       Serial.print(stickRX); Serial.print("/");
+       Serial.print(stickRY); Serial.print("/");
+      for(int i=1;i<=8;i++) Serial.print(sonderfunktionen[i]);
+      Serial.println();
+    #endif
+  }
+};
+
+EasySMX_Parser parser;
 
 //######################## Setup Funkmodul ##################################
 
@@ -41,47 +73,11 @@ RFM69 radio(8, 3);   //SS-Pin, Interrupt-Pin
 String datenstring;
 String controlMessage;
 //########################### Variablen ####################################
-#define DEBUG_SERIAL true
 
 unsigned long runtime, lastSend;
 
-bool sonderfunktionen[12];
 bool initWerte = true;
 int statusLED = 5;
-
-void setup() {
-        #if DEBUG_SERIAL
-          Serial.begin(9600);
-          Serial.println("ready");
-        #endif
-        pinMode(statusLED, OUTPUT);
-        //Serial.println("Start");
-        setupRFM69();
-    
-        if (Usb.Init() == -1) {                             //wenn kein USB Gamepad erkannt
-                #if DEBUG_SERIAL
-                 Serial.println("OSC did not start.");
-                #endif          
-                if(true){
-                  //
-                  Serial.println("db1");
-                  digitalWrite(statusLED, HIGH);            //LED blinken lassen
-                  delay(300);
-                  digitalWrite(statusLED, LOW);
-                  delay(300);
-                }
-        }
-        
-
-        if (!Hid.SetReportParser(0, &Joy)) {
-          
-           ErrorMessage<uint8_t > (PSTR("SetReportParser"), 1);
-        }
-
-        //wdt_enable(WDTO_2S);   // Watchdog auf 2 s stellen
-
-        
-}
 
 void setupRFM69() {
   radio.initialize(FREQUENCY, MYNODEID, NETWORKID);
@@ -90,6 +86,69 @@ void setupRFM69() {
   radio.setFrequency(FREQUENCY_EXACT); //set frequency to some custom frequency
   delay(1000);
 }
+
+void setup() {
+  #if DEBUG_SERIAL
+    Serial.begin(9600);
+    Serial.println("ready");
+  #endif
+  pinMode(statusLED, OUTPUT);
+
+
+  //Serial.println("Start");
+  setupRFM69();
+  
+  if (Usb.Init() == -1) {                             //wenn kein USB Gamepad erkannt
+    #if DEBUG_SERIAL
+     Serial.println("OSC did not start.");
+    #endif          
+    if(true){
+      //
+      Serial.println("db1");
+      digitalWrite(statusLED, HIGH);            //LED blinken lassen
+      delay(300);
+      digitalWrite(statusLED, LOW);
+      delay(300);
+    }
+  }
+  if (!Hid.SetReportParser(0, &parser)) {
+    ErrorMessage<uint8_t > (PSTR("SetReportParser"), 1);
+  }
+
+   //wdt_enable(WDTO_2S);   // Watchdog auf 2 s stellen        
+}
+
+void sende(String sendeString) {
+  static char sendbuffer[62];     //Puffer reservieren
+  //static int sendlength = 0;      //Länge erst mal 0
+
+  datenstring = "";
+  datenstring.concat(sendeString);  
+  datenstring.toCharArray(sendbuffer, 62);    //String in charArray umformen
+  //Serial.println(sendbuffer);
+
+  if (USEACK)
+      {
+        if (radio.sendWithRetry(TONODEID, sendbuffer, datenstring.length())) {    //Acknowledge ist eigentlich sowieso ausgeschaltet
+          
+        }
+          //Serial.println("ACK received!");
+        
+          //Serial.println("no ACK received :(");
+      }
+
+      // If you don't need acknowledgements, just use send():
+      
+      else // don't use ACK
+      {
+        radio.send(TONODEID, sendbuffer, datenstring.length());     //HIER wird eigentlich überhaupt erst gesendet
+        //Serial.println("db4");
+        
+      }
+
+}
+
+
 void loop() {
         Usb.Task();
         runtime = millis();      
@@ -157,83 +216,5 @@ void loop() {
   }
         
   sende(controlMessage); // SENDEN der Werte via Funk 
-}
-
-void JoystickEvents::OnGamePadChanged(const GamePadEventData *evt) {
-        stickLX = evt->X;
-        stickLY = 255 - evt->Y;     //teilweise daten in den richtigen Wertebereich schieben
-        stickRX = evt->Z2;
-        stickRY = 255 - evt->Rz;    //teilweise daten in den richtigen Wertebereich schieben
-        /**Serial.print("X1: ");
-        PrintHex<uint8_t > (evt->X, 0x80);
-        Serial.print("\tY1: ");
-        PrintHex<uint8_t > (evt->Y, 0x80);
-        //Serial.print("\to: ");
-        //PrintHex<uint8_t > (evt->Z1, 0x80);
-        Serial.print("\tX2: ");
-        PrintHex<uint8_t > (evt->Z2, 0x80);
-        Serial.print("\tY2: ");
-        PrintHex<uint8_t > (evt->Rz, 0x80);
-        Serial.println("");
-        **/
-
-        
-        
-        
-}
-
-void sende(String sendeString) {
-  static char sendbuffer[62];     //Puffer reservieren
-  static int sendlength = 0;      //Länge erst mal 0
-
-  datenstring = "";
-  datenstring.concat(sendeString);  
-  datenstring.toCharArray(sendbuffer, 62);    //String in charArray umformen
-  Serial.println(sendbuffer);
-
-  if (USEACK)
-      {
-        if (radio.sendWithRetry(TONODEID, sendbuffer, datenstring.length())) {    //Acknowledge ist eigentlich sowieso ausgeschaltet
-          
-        }
-          //Serial.println("ACK received!");
-        
-          //Serial.println("no ACK received :(");
-      }
-
-      // If you don't need acknowledgements, just use send():
-      
-      else // don't use ACK
-      {
-        radio.send(TONODEID, sendbuffer, datenstring.length());     //HIER wird eigentlich überhaupt erst gesendet
-        //Serial.println("db4");
-        
-      }
-
-}
-
-
-void JoystickEvents::OnHatSwitch(uint8_t hat) {     //Hat Switche sind eigentlich nicht in Benutzung
-    #if DEBUG_SERIAL
-       Serial.print("Hat Switch: ");
-       PrintHex<uint8_t > (hat, 0x80);
-       Serial.println("");
-    #endif
-}
-
-void JoystickEvents::OnButtonUp(uint8_t but_id) {   //button loslassen löst keine besondere Aktion aus
-  #if DEBUG_SERIAL
-        Serial.print("Up: ");
-        Serial.println(but_id, DEC);
-  #endif
-}
-
-void JoystickEvents::OnButtonDn(uint8_t but_id) {           //Funktioknstasten vom Gamepad abfragen
-  sonderfunktionen[but_id] = !sonderfunktionen[but_id];     //Wenn Funktion aufgerufen wird, wird die ButtonId mit als Parameter übergeben
-                                                            //im bool Array Sonderfunktionen wird dann der Wert invertiert.
-  #if DEBUG_SERIAL
-        Serial.print(runtime);
-        Serial.print(" : Dn: ");
-        Serial.println(but_id, DEC);
-  #endif
+  delay(2); // USBHost needs some time...
 }

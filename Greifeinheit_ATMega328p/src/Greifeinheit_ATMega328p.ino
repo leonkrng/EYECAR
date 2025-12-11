@@ -3,10 +3,8 @@
 #include <Bounce2.h>
 #include "MotorByte.h"
 #include "CtrlByte.h"
-#include "HX711.h"
-#include "PressureSensor.h"
 
-#define debug 0
+#define debug 4
 
 /* Steppers */
 SpeedyStepper stepperGripper;
@@ -20,12 +18,12 @@ const float stepsPerRevolutionGripper = 1600; // motor has 200 steps/rev, contro
 const float speedMillisPerSecondGripper = 8; // on turn of the Motor is 3 mm in height 18 mm/s -> 6 1/s
 const float accMillisPerSecondPerSecondGripper = 60;
 const float softLimitLowGripper = 0;
-const float softLimitHighGripper = -13.5;
+const float softLimitHighGripper = -18;
 
 // Height
 const float millisPerTurnHeight = 3; // 3 mm height per turn
-const float stepsPerRevolutionHeight = 1600; // motor has 200 steps/rev, controller ist set to 1600 microsteps/rev
-const float speedMillisPerSecondHeight = 18; // on turn of the Motor is 3 mm in height 18 mm/s -> 6 1/s
+const float stepsPerRevolutionHeight = 800; // motor has 200 steps/rev, controller ist set to 1600 microsteps/rev
+const float speedMillisPerSecondHeight = 25; // on turn of the Motor is 3 mm in height 18 mm/s -> 6 1/s
 const float accMillisPerSecondPerSecondHeight = 30;
 
 bool processMovementGripper = true; // should the gripper move? 
@@ -57,10 +55,7 @@ const byte doutPinPressureSensor = 3;
 CtrlByte cmd, lastCmd;
 int ref = 0;
 
-/* Pressuresensor */
-// PressureSensor pressureSensor(doutPinPressureSensor, sckPinPressureSensor);
-// HX711 scale;
-float measuredVal;
+
 
 // function that executes whenever data is received from master -------------------------------
 // this function is registered as an event, see setup()
@@ -70,10 +65,12 @@ void receiveEvent(int howMany) {
   while (Wire.available())  // loop through all but the last
   {
     int x = Wire.read();  // receive byte as a character
-    Serial.print(x);         // print the character
+    //Serial.println(x);         // print the character
     cmd.setByte(x);
-    Serial.print(" ");
-    Serial.println(cmd.getByte());
+   /* Serial.print(cmd.readBit(openGripper));
+    Serial.print(cmd.readBit(closeGripper));
+    Serial.print(cmd.readBit(moveUp));
+    Serial.println(cmd.readBit(moveDown));*/
   }
 }
 
@@ -180,11 +177,6 @@ void setup() {
   stepperHeight.setAccelerationInMillimetersPerSecondPerSecond(accMillisPerSecondPerSecondHeight); // set acceleration
 
   /* Pressure Sensor */
-  // pressureSensor.SetupSensor();
-  /*scale.begin(doutPinPressureSensor, sckPinPressureSensor);
-  scale.set_scale();
-  scale.tare(5);
-  scale.set_scale(11200);*/
   processMovementGripper = true;
 
   Serial.println("Setup done");
@@ -219,14 +211,13 @@ void loop() {
       Serial.println("LOW");
     }
   #endif
-  // measuredVal = scale.get_units(1);
-  // Serial.print(measuredVal <= 5);
-  // Serial.print(" ");
-  // Serial.println(measuredVal);
-  
+  #if (debug == 5)
+    Serial.println(cmd.getByte());
+  #endif
 
   // movement control
   if(shouldIDoThisCmd(cmd)){ // checking if the command is new
+
     #if (debug == 1) 
       Serial.print("cmdNo: ");
       Serial.print(cmd.readBit(moveUp));
@@ -234,32 +225,54 @@ void loop() {
       Serial.print(cmd.readBit(openGripper));
      Serial.println(cmd.readBit(closeGripper));
     #endif
+    #if (debug == 4)
+      Serial.print("new CMD: ");
+    #endif
   
     /* height */
-    if (cmd.readBit(moveUp)) { 
+    if (cmd.readBit(moveUp) and not (cmd.readBit(moveDown))) { 
       stepperHeight.setupRelativeMoveInMillimeters(1000); // change setpos to 1000
-    } else if (cmd.readBit(moveDown)) {
+      #if (debug == 4)
+        Serial.print("up ");
+      #endif
+    } else if (cmd.readBit(moveDown) and not (cmd.readBit(moveUp))) {
       stepperHeight.setupRelativeMoveInMillimeters(-1000); // change setpos to -1000
+      #if (debug == 4)
+        Serial.print("down ");
+      #endif
     } else { // no signal for height changement
       breakIfNeeded(&stepperHeight);
+      #if (debug == 4)
+        Serial.print("stop ");
+      #endif
     }
 
     /* gripper */
-    if (cmd.readBit(closeGripper)) { 
-      stepperGripper.setupMoveInMillimeters(softLimitLowGripper);
-      processMovementGripper = true; // enable movement
-    } else if (cmd.readBit(openGripper)) {
-      stepperGripper.setupMoveInMillimeters(softLimitHighGripper); //
-      // processMovementGripper = pressureSensor.MovementIsSafe(); 
+    if (cmd.readBit(closeGripper) and not (cmd.readBit(openGripper))) { 
+      stepperGripper.setupMoveInMillimeters(softLimitHighGripper);
+      #if (debug == 4)
+        Serial.println("close");
+      #endif
+    } else if (cmd.readBit(openGripper) and not cmd.readBit(closeGripper)) {
+      stepperGripper.setupMoveInMillimeters(softLimitLowGripper); //
+      #if (debug == 4)
+        Serial.println("open");
+      #endif
     } else { // no signal for gripper changement
       breakIfNeeded(&stepperGripper);
+      #if (debug == 4)
+        Serial.println("stop");
+      #endif
     }
   }
 
+  #if (debug == 6)
+    Serial.println(cmd.readBit(movementIsSafe));
+  #endif
   /* do the given Movements */
   stepperHeight.processMovement();
-  processMovementGripper = true; // tmp
-  // if (processMovementGripper) {
+
+  if ((cmd.readBit(movementIsSafe) and cmd.readBit(closeGripper)) or cmd.readBit(openGripper)) {
     stepperGripper.processMovement();
-  // }
+  }  
 }

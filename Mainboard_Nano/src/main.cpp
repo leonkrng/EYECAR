@@ -5,61 +5,81 @@
 //CIRCUIT DIGEST
 //Pramoth.T
 
-#include<SPI.h>
+#include <SPI.h>
+#include "PressureSensor.h"
 
 volatile boolean received;
 volatile byte SPIRECEIVED,SPISEND;
 volatile byte sendDataCounterIndex;
-volatile byte dataZumESP[9] = {0,1,2,3,7,6,1,2,3};
+byte movementStatus;
+volatile byte dataZumESP[9];
 volatile byte dataVomESP[20];
-
-int buttonvalue;
-int x;
 
 unsigned long currentMillis, lastPrint;
 
 bool blink;
 bool beleuchtungAktiv;
 
+const byte doutPinPressureSensor = 2;
+const byte sckPinPressureSensor = 3;
+
+PressureSensor pressureSensor(doutPinPressureSensor, sckPinPressureSensor); // communication with HX711
+float measuredVal; // HX711 Value
+
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Nano ready");
-  pinMode(MISO,OUTPUT);                   //Sets MISO as OUTPUT (Have to Send data to Master IN 
+  pinMode(MISO, OUTPUT);        // MISO muss OUTPUT sein für SPI
 
-  SPCR |= _BV(SPE);                       //Turn on SPI in Slave Mode
-  received = false;
+  SPCR |= _BV(SPE);             // SPI als Slave aktivieren
+  SPI.attachInterrupt();        // SPI Interrupt einschalten
 
-  SPI.attachInterrupt();                  //Interuupt ON is set for SPI commnucation
+  // pressureSensor.SetupSensor(); // HX711 einrichten
+
+  // Serial.begin(115200);
+  // Serial.println("Nano ready");
+  // pinMode(MISO,OUTPUT);                   //Sets MISO as OUTPUT (Have to Send data to Master IN 
+
+  // SPCR |= _BV(SPE);                       //Turn on SPI in Slave Mode
+  // received = false;
+
+  // SPI.attachInterrupt();                  //Interuupt ON is set for SPI commnucation
+
+  pressureSensor.SetupSensor();           // Setup scale
 
   pinMode(A0, OUTPUT);
   
 }
 
-ISR (SPI_STC_vect)                        //Inerrput routine function 
+ISR (SPI_STC_vect)
 {
-  //Serial.println("isr");
-  SPIRECEIVED = SPDR;                     // Value received from master if store in variable slavereceived
-  received = true;                        //Sets received as True 
+  // SPIRECEIVED = SPDR;       // Empfang vom Master
+  // received = true;
 
+  // if (SPIRECEIVED == 0xFE) {
+  //   sendDataCounterIndex = 0;
+  //   SPISEND = dataZumESP[sendDataCounterIndex];  // Beim nächsten Master-Transfer gibt's das erste Datenbyte zurück!
+  // } else {
+  //   if(sendDataCounterIndex <= 8 ) {
+  //     dataVomESP[sendDataCounterIndex] = SPIRECEIVED; // Master-Daten ablegen
+  //     sendDataCounterIndex++;
+  //     if(sendDataCounterIndex <= 8) {
+  //       SPISEND = dataZumESP[sendDataCounterIndex];
+  //     } else {
+  //       SPISEND = 0; // Alternativ ein Fehlerwert oder wieder auf Null)
+  //     }
+  //   }
+  // }
 
-  if(SPIRECEIVED == 0xFE) {
-        sendDataCounterIndex = 0;
-        //Serial.println("Received START packet");
-  } else {
-        //Serial.print("Got via SPI: "); Serial.print(SPIRECEIVED);
-        if(sendDataCounterIndex <= 8 ) {  //Sicherheitsabfrage
-          dataVomESP[sendDataCounterIndex] = SPIRECEIVED;
-          SPISEND = dataZumESP[sendDataCounterIndex];
-          //Serial.print("            returned: "); Serial.print(SPISEND);
-          sendDataCounterIndex++;
-        } else {
-          //Serial.print("got more requests than i have data");
-        }
-        //Serial.println();
-  }
-    
-    SPDR = SPISEND;                           //Sends the x value to master via SPDR 
+  // SPDR = SPISEND; // Direkt das Byte für DEN NÄCHSTEN Transfer vorbereiten!
 
+  SPIRECEIVED = SPDR;       // Empfang vom Master
+  
+  // Statusbyte ermitteln (z.B. 0x01 = sicher, 0x00 = nicht sicher)
+  
+
+  SPDR = movementStatus;    // Status wird sofort als Antwort bereitgestellt!
 }
 
 
@@ -70,6 +90,7 @@ void io() {
 void loop(){ 
   
   currentMillis = millis();
+  movementStatus = pressureSensor.MovementIsSafe() ? 0x01 : 0x00;
   
   if(received) {                           //Logic to SET LED ON OR OFF depending upon the value recerived from master
     //Serial.print("I-> "); Serial.println(SPIRECEIVED);    
@@ -92,7 +113,9 @@ void loop(){
     beleuchtungAktiv = dataVomESP[1];
   }
 
-  io();  
+  io();
+  
+  Serial.println(movementStatus);
 }
 
 

@@ -21,6 +21,8 @@ RFM69 radio(25,4);   //SS-Pin, Interrupt-Pin
 
 #define debugLevel 0 // standard debug: 1; debug of movement directions
 #define override 1 // when set to a value higher than 0, an override is used, otherwise the sticks are interpreted binary (not implemented)
+#define DEBUG_GREIFER 0
+#define DEBUG_SPI_RECIEVE 1
 #define automatic 0 // 0: static use of gamepad for movement control, 1: static use of raspi for movement control,
                     // 2: Mode can be switched with gamepad (not implemented)
 
@@ -28,10 +30,10 @@ RFM69 radio(25,4);   //SS-Pin, Interrupt-Pin
 char fromSerialMon = ' ';
 CtrlByte sendToMega; // Byte for controling gripper and linear unit
 bool GreifeinheitHoch, GreifeinheitRunter, GreiferAuf, GreiferZu;
-Buttons buttonHoch(&GreifeinheitHoch);
+/*Buttons buttonHoch(&GreifeinheitHoch);
 Buttons buttonRunter(&GreifeinheitRunter);
 Buttons buttonAuf(&GreiferAuf);
-Buttons buttonZu(&GreiferZu);
+Buttons buttonZu(&GreiferZu);*/
 
 String datenstring;
 unsigned long receivedLast;
@@ -341,13 +343,32 @@ void arucoAutomatik() {
 }
 
 void Greifeinheit(){
-  sendToMega.linkBits(moveUp, moveDown, buttonHoch.getImpulse(), buttonRunter.getImpulse());
-  sendToMega.linkBits(openGripper, closeGripper, buttonAuf.getImpulse(), buttonZu.getImpulse());
+/*GreifeinheitHoch = controldata[8];
+ GreifeinheitRunter = controldata[10];
 
-  Serial.print(sendToMega.readBit(moveUp));
-  Serial.print(sendToMega.readBit(moveDown));
-  Serial.print(sendToMega.readBit(openGripper));
-  Serial.println(sendToMega.readBit(closeGripper));
+ GreiferAuf = controldata[9];
+ GreiferZu = controldata[11];*/
+ // kind of stupid solution, I know...
+  if (controldata[8]) { // move up
+    sendToMega.setBit(moveUp);
+  } else {
+    sendToMega.clearBit(moveUp);
+  }
+  if (controldata[10]) { // move down
+    sendToMega.setBit(moveDown);
+  } else {
+    sendToMega.clearBit(moveDown);
+  }
+  if (controldata[9]) { // open
+    sendToMega.setBit(closeGripper);
+  } else {
+    sendToMega.clearBit(closeGripper);
+  }
+  if (controldata[11]) { // close
+    sendToMega.setBit(openGripper);
+  } else {
+    sendToMega.clearBit(openGripper);
+  }
 }
 
 
@@ -373,11 +394,18 @@ void processData() {
  GreiferAuf = controldata[9];
  GreiferZu = controldata[11];
 
+ #if DEBUG_GREIFER
+    Serial.print(controldata[8]);
+    Serial.print(controldata[10]);
+    Serial.print(controldata[9]);
+    Serial.println(controldata[11]);
+ #endif
+
  //Die Aruco-Navigation wird bei jedem Flankenwechsel gestartet/gestoppt!
  if(lastArucoNavigation != controldata[5]) {
    lastArucoNavigation = controldata[5];
    arucoNavigationAktiv = !arucoNavigationAktiv;
-   Serial.print("[INFO] Aruconavigation "); Serial.println(arucoNavigationAktiv);
+   //Serial.print("[INFO] Aruconavigation "); Serial.println(arucoNavigationAktiv);
  }
 
  if(receiverTimeout) {   // when there is no signal from the gamepad
@@ -472,17 +500,17 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
 
   case movementDirections::fw :
-    VLneu = -100;
-    VRneu = -100;
-    HLneu = -100;
-    HRneu = -100;
-    break;
-
-  case movementDirections::bw :
     VLneu = 100;
     VRneu = 100;
     HLneu = 100;
     HRneu = 100;
+    break;
+
+  case movementDirections::bw :
+    VLneu = -100;
+    VRneu = -100;
+    HLneu = -100;
+    HRneu = -100;
     break;
   
   case movementDirections::l :
@@ -500,31 +528,31 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
   
   case movementDirections::fwl :
-    VLneu = -100;
+    VLneu = 100;
     VRneu = 0;
     HLneu = 0;
-    HRneu = -100;
+    HRneu = 100;
     break;
 
   case movementDirections::fwr :
-    VLneu = 0;
-    VRneu = -100;
-    HLneu = -100;
-    HRneu = 0;
-    break;
-
-  case movementDirections::bwl :
     VLneu = 0;
     VRneu = 100;
     HLneu = 100;
     HRneu = 0;
     break;
 
+  case movementDirections::bwl :
+    VLneu = 0;
+    VRneu = -100;
+    HLneu = -100;
+    HRneu = 0;
+    break;
+
   case movementDirections::bwr :
-    VLneu = 100;
+    VLneu = -100;
     VRneu = 0;
     HLneu = 0;
-    HRneu = 100;
+    HRneu = -100;
     break;
 
   case movementDirections::tl :
@@ -542,31 +570,31 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
 
   case movementDirections::fwtl :
-    VLneu = -100;
-    VRneu = 0;
-    HLneu = -100;
-    HRneu = 0;
-    break;
-
-  case movementDirections::fwtr :
-    VLneu = 0;
-    VRneu = -100;
-    HLneu = 0;
-    HRneu = -100;
-    break;
-
-  case movementDirections::bwtl :
     VLneu = 100;
     VRneu = 0;
     HLneu = 100;
     HRneu = 0;
     break;
 
-  case movementDirections::bwtr :
+  case movementDirections::fwtr :
     VLneu = 0;
     VRneu = 100;
     HLneu = 0;
     HRneu = 100;
+    break;
+
+  case movementDirections::bwtl :
+    VLneu = -100;
+    VRneu = 0;
+    HLneu = -100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::bwtr :
+    VLneu = 0;
+    VRneu = -100;
+    HLneu = 0;
+    HRneu = -100;
     break;
 
   default:
@@ -617,53 +645,30 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
 }
 
 void communicationArduinoNano() {
-        
-  datenZumNano[1] = beleuchtungAktiv;
+  // Zu sendender Wert, z.B. der Zustand für die Nano-LED:
+  byte sendStatus = beleuchtungAktiv ? 1 : 0;
 
-  if(flag_new_packet) {                                                           //Wenn wir neue Daten schicken/bekommen müssten 
-    if(currentMillis - lastMillisSPINano > 20) {                                 //und lange nichts mehr ausgetauscht haben
-      SPISEND = 0xFE;                                                             //Sende Beginn-packet
-      flag_new_packet = false;                                                    //flag setzen
+  digitalWrite(DO_SS_ArduinoNano, LOW);   // Chipselect aktivieren
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));  // 1MHz reicht meist sicher
 
-      digitalWrite(DO_SS_ArduinoNano, LOW);                                       //Chipselect anwählen
-      SPI.beginTransaction(SPISettings(2400000, MSBFIRST, SPI_MODE0));            //SPI-Verbindung beginnen
-      SPIRECEIVE = SPI.transfer(SPISEND);                                         //Send the mastersend value to slave also receives value from slave
+  // Ein Byte senden, gleichzeitig das Status-Byte vom Nano empfangen
+  byte movementStatus = SPI.transfer(sendStatus);
 
-      digitalWrite(DO_SS_ArduinoNano, HIGH);                                      //Chipselect abwählen
-      SPI.endTransaction();                                                       //Ende Gelände
-      //Serial.println("SPI SENT NEW PAKET FLAG");
-      //Serial.println("=========================================");
-      lastMillisSPINano = currentMillis;
+  SPI.endTransaction();
+  digitalWrite(DO_SS_ArduinoNano, HIGH);  // Chipselect deaktivieren
 
-    }
-  } else {                                                                        //Flag=false bedeutet die eigentlichen Daten übertragen
-    if(currentMillis - lastMillisSPINano > 2) {
-      SPISEND = datenZumNano[dataIndexCounter];                                     //Zu sendende Daten reinladen
-      digitalWrite(DO_SS_ArduinoNano, LOW);                                         //Chipselect anwählen
-      SPI.beginTransaction(SPISettings(2400000, MSBFIRST, SPI_MODE0));              //SPI-Verbindung beginnen
-      SPIRECEIVE = SPI.transfer(SPISEND);                                           //Send the mastersend value to slave also receives value from slave
-      datenVomNano[dataIndexCounter] = SPIRECEIVE;                                  //Empfangene Daten in Array einsortieren
-      
-
-      //Serial.print(SPISEND); Serial.print("       "); Serial.println(SPIRECEIVE);
-
-      dataIndexCounter++;        
-      if(dataIndexCounter >=9) {                                                    //Bei Überlauf = alle Pakete wurden übertragen
-        dataIndexCounter = 0;                                                       //Counter resetten
-        flag_new_packet = true;                                                     //flag wieder setzen für neues Paket
-       
-        //Serial.println("=========================================");
-        
-      }
-
-      digitalWrite(DO_SS_ArduinoNano, HIGH);                                        //Chipselect abwählen
-      SPI.endTransaction();                                                         //Ende Gelände
-                                                         //Counter erhöhen für nächste Daten
-      lastMillisSPINano = currentMillis;
-    }
+  // Nun ist movementStatus das vom Nano transferierte Status-Byte (z.B. Bit0 = movementIsSafe)
+  // Beispiel-Verarbeitung im ESP/UNO:
+  if (movementStatus & 0x01) {
+    sendToMega.setBit(movementIsSafe);
+  } else {
+    sendToMega.clearBit(movementIsSafe);
   }
 
- 
+  #if (DEBUG_SPI_RECIEVE)
+    Serial.print("Empfangenes Status-Byte vom Nano: ");
+    Serial.println(movementStatus, BIN);
+  #endif
 }
 
 void nachrichtZusammensetzen() {
@@ -757,15 +762,15 @@ void recvWithEndMarker() {
 
 
 void loop() {
-  buttonHoch.update();
+  /*buttonHoch.update();
   buttonZu.update();
   buttonRunter.update();
-  buttonAuf.update();
+  buttonAuf.update();*/
 
   //DB Erweiterung Greifeinheit Kommandos Senden
   Wire.beginTransmission(20); // transmit to device #4
   uint8_t tmpSendToMega = sendToMega.getByte();
-  Serial.print(tmpSendToMega);
+  //Serial.print(tmpSendToMega);
   Wire.write(tmpSendToMega); // sends one byte  
   Wire.endTransmission();    // stop transmitting
 
