@@ -39,21 +39,17 @@ from overlay.overlay_node import OverlayNode
 rclpy.init()
 executor = MultiThreadedExecutor()
 
-# Initialize main-node
-#main_node = MainNode()
-#executor.add_node(main_node)
+# Initialize camera-node
+camera_node = CameraNode()
+executor.add_node(camera_node)
 
 # Initialize lidar-node
-lidar_front_subscriber = LidarNode()
-executor.add_node(lidar_front_subscriber)
+lidar_front_node = LidarNode()
+executor.add_node(lidar_front_node)
 
 # Initialize serial-connection-node
 serial_node = SerialConnectionNode()
 executor.add_node(serial_node)
-
-# Initialize camera-node
-camera_node = CameraNode()
-executor.add_node(camera_node)
 
 # Initialize aruco-node
 aruco_node = ArucoNode()
@@ -63,40 +59,9 @@ executor.add_node(aruco_node)
 overlay_node = OverlayNode() 
 executor.add_node(overlay_node)
 
-executor_thread = threading.Thread(target=executor.spin(), daemon=True)
-executor_thread.start()
-
 while 1:
 
-    #if not cap.isOpened():
-    #    print("[ERROR]: No frame found.")
-    #    frame = cv2.imread("no_signal.jpg")
-    #else:
-    #    ret, frame = cap.read()
-
-    #executor.spin_once(timeout_sec=0.001)
-
-    #frame = cv2.resize(frame, (832, 600))
-
-    # Read ArUco-marker
-    #command = aruco_navigation.read_marker.read_marker(frame,
-    #                                       main_node.prev_aruco_navigation_active,
-    #i                                       #navigation_list,
-    #                                       #max_marker_size,
-    #                                       #camera_resolution, 
-    #                                       main_node.actual_ID)
-
-    # Publish serial data
-    #message = String()
-    #message.data = f"1/7/" + str(command.value) + "/8\r\n"
-    #main_node.serial_write_pub.publish(message)
-
-    # Draw overlay
-    #overlay.draw_overlay.draw_overlay(frame,
-    #                                  main_node.telemetry_data,
-    #                                  navigation_list,
-    #                                  main_node.actual_ID,
-    #                                  main_node.prev_aruco_navigation_active)
+    executor.spin_once(timeout_sec=0.001)
 
     # If the `q` key was pressed, break from the loop
     key = cv2.waitKey(1) & 0xFF
@@ -107,8 +72,9 @@ while 1:
 
 # Cleanup
 executor.shutdown()
-#executor_thread.join(timeout=1)
-#lidar_front.destroy_node()
-main_node.destroy_node()
 serial_node.destroy_node()
+lidar_front_node.destroy_node()
+camera_node.destroy_node()
+aruco_node.destroy_node()
+overlay_node.destroy_node()
 rclpy.shutdown()

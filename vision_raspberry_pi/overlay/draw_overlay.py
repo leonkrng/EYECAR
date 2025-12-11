@@ -190,5 +190,4 @@ def draw_overlay(frame,
     cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
     cv2.moveWindow(window_name, 0, 36)
     cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
     cv2.imshow(window_name, frame)

@@ -16,7 +16,7 @@ class CameraNode(Node):
 
         gst_pipeline = (
             "udpsrc port=8000 ! jpegdec ! videoconvert ! "
-            "appsink drop=true sync=false max-buffers=1"
+            "appsink emit-signals=false drop=true sync=false max-buffers=1"
         )
         self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
@@ -37,5 +37,6 @@ class CameraNode(Node):
             self.get_logger().error("Fallback image 'no_signal.jpg' not found.")
             return
 
+        #cv2.imshow("Debug Window", frame)
         msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
         self.frame_raw_publisher.publish(msg)

@@ -10,7 +10,7 @@ from aruco_navigation.movement_enum import MovementEnum
 
 class ArucoNode(Node):
     def __init__(self):
-        super().__init__('aruco_node')
+        super().__init__('aruco_node', allow_undeclared_parameters=True)
 
         self.frame_raw_subscriber = self.create_subscription(
             Image,
