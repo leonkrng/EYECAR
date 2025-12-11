@@ -48,6 +48,6 @@ class SerialConnectionNode(Node):
                 # Publish
                 message = String()
                 data = line
-                self.telemetry_pub.publish(message)
+                self.read_pub.publish(message)
         except Exception as e:
             self.get_logger().error(f"Serial read failed: {e}")
