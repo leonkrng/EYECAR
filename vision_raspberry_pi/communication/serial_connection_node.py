@@ -21,22 +21,25 @@ class SerialConnectionNode(Node):
                 dsrdtr = False,
             )
 
-        self.read_pub = self.create_publisher(String, '/serial/read', 10)
+        self.serial_read_publisher = self.create_publisher(String,
+                                              '/serial/read',
+                                              10)
 
-        self.write_sub = self.create_subscription(
+        self.serial_write_subscriber = self.create_subscription(
             String,
             '/serial/write',
-            self.write_callback,
+            self.serial_write_callback,
             10
         )
 
         # Read serial input every 10 ms
         self.read_timer = self.create_timer(0.01, self.read_serial)
 
-    def write_callback(self, msg:String):
+    def serial_write_callback(self, msg:String):
         try:
             msg_array = msg.data.split("/")
             self.ser.write(msg_array)
+
         except Exception as e:
             self.get_logger().error(f"Serial write failed: {e}")
 
@@ -46,8 +49,7 @@ class SerialConnectionNode(Node):
 
             if len(line) > 0:
                 # Publish
-                message = String()
-                data = line
-                self.read_pub.publish(message)
+                self.serial_read_publisher.publish(line)
+
         except Exception as e:
             self.get_logger().error(f"Serial read failed: {e}")
