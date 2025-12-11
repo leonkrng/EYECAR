@@ -3,9 +3,10 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from std_msgs.msg import String 
 from std_msgs.msg import Bool 
+from cv_bridge import CvBridge
 import cv2
 from aruco_navigation.read_marker import read_marker
-from vision_raspberry_pi.aruco_navigation.movement_enum import MovementEnum
+from aruco_navigation.movement_enum import MovementEnum
 
 class ArucoNode(Node):
     def __init__(self):
@@ -18,12 +19,12 @@ class ArucoNode(Node):
             10)
 
         self.collision_subscriber = self.create_subscription(
-                String,
+                Bool,
                 '/ldlidar_node/collision',
                 self.collision_callback,
                 10)
 
-        self.command_publisher = self.createpublisher(String,
+        self.command_publisher = self.create_publisher(String,
                                                       '/serial/write',
                                                       10)
 
@@ -32,6 +33,7 @@ class ArucoNode(Node):
                                                                10)
 
         self.collision_detected = False
+        self.bridge = CvBridge()
 
         
     def image_raw_callback(self, msg:Image):
@@ -39,12 +41,17 @@ class ArucoNode(Node):
         
         command, processed_frame = read_marker(frame)
 
+        msg = String()
+
         if self.collision_detected:
-            self.command_publisher.publish(MovementEnum.STOP)
+            msg.data = str(MovementEnum.STOP)
         else:
-            self.command_publisher.publish(command)
+            msg.data = str(str(command.value))
             
-        self.frame_processed_publisher.publish(processed_frame)
+        self.command_publisher.publish(msg)
+
+        msg_frame = self.bridge.cv2_to_imgmsg(processed_frame, encoding="bgr8")
+        self.frame_processed_publisher.publish(msg_frame)
 
 
     def collision_callback(self, msg:Bool):

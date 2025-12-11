@@ -18,13 +18,13 @@ from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import LaserScan
 from communication.serial_connection_node import SerialConnectionNode
 from lidar_sensor.lidar_node import LidarNode
-from camera.camera_publisher import CameraPublisher
+from camera.camera_node import CameraNode
 import overlay
 from std_msgs.msg import String
 from main_node import MainNode
-from vision_raspberry_pi.aruco_navigation.aruco_node import ArucoNode
-from vision_raspberry_pi.camera.camera_node import CameraNode
-from vision_raspberry_pi.overlay.overlay_node import OverlayNode
+from aruco_navigation.aruco_node import ArucoNode
+from camera.camera_node import CameraNode
+from overlay.overlay_node import OverlayNode
 
 #camera_resolution = [832, 600]  # Camera resolution [x, y]
 #navigation_list = [1, 2, 3, 4]

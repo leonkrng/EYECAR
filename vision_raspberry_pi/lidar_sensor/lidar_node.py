@@ -17,7 +17,7 @@ class LidarNode(Node):
 
         self.collision_publisher = self.create_publisher(Bool,
                                                          '/ldlidar_node/collision',
-                                                         10
+                                                         10)
 
 
     def lidar_scan_callback(self, msg: LaserScan):
