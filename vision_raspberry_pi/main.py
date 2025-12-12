@@ -30,11 +30,6 @@ from overlay.overlay_node import OverlayNode
 #navigation_list = [1, 2, 3, 4]
 #max_marker_size = 0.4  # maximum marker size in relation to camera x-resoulution (0-1)
 
-# Camera stream pipeline
-#gst_pipeline = ("udpsrc port=8000 ! jpegdec ! videoconvert ! appsink drop=true sync=false max-buffers=1")
-#cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-#cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
 # Initialize executor 
 rclpy.init()
 executor = MultiThreadedExecutor()
