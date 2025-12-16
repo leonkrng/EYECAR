@@ -17,7 +17,19 @@ class OverlayNode(Node):
                                                                    10)
         self.bridge = CvBridge()
 
+        self.last_frame = None
+        cv2.namedWindow("EYE-CAR", cv2.WND_PROP_FULLSCREEN)
+        cv2.moveWindow("EYE-CAR", 0, 36)
+        cv2.resizeWindow("EYE-CAR", 832, 600)
+        self.frame_timer = self.create_timer(0.03, self.timer_callback)
+
     def processed_frame_callback(self, msg:Image):
 
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        draw_overlay(frame)
+        self.last_frame = draw_overlay(frame)
+
+    def timer_callback(self):
+        if self.last_frame is not None:
+                frame = draw_overlay(self.last_frame)
+                cv2.imshow("EYE-CAR", frame)
+                cv2.waitKey(1)

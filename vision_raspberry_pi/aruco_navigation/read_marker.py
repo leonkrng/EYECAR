@@ -17,16 +17,10 @@ def read_marker(frame,
 
     key = getattr(aruco, f"DICT_5X5_50")
 
-    # Cv2.aruco changed the API with V4.7.0
-    if socket.gethostname() != "eye-car-pi":
-        arucoDict = aruco.getPredefinedDictionary(key)
-        arucoParam = aruco.DetectorParameters()
-        arucoDetector = aruco.ArucoDetector(arucoDict,arucoParam) 
-        (corners, ids, rejected) = arucoDetector.detectMarkers(grayscale_frame)
-    else:
-        arucoDict = aruco.Dictionary_get(key)
-        arucoParam = aruco.DetectorParameters_create()
-        (corners, ids, rejected) = aruco.detectMarkers(grayscale_frame, arucoDict, parameters=arucoParam)
+    arucoDict = aruco.getPredefinedDictionary(key)
+    arucoParam = aruco.DetectorParameters()
+    arucoDetector = aruco.ArucoDetector(arucoDict,arucoParam) 
+    (corners, ids, rejected) = arucoDetector.detectMarkers(grayscale_frame)
 
     command = movement_enum.MovementEnum.NO_MARKER
 

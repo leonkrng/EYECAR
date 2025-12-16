@@ -12,7 +12,7 @@ class SerialConnectionNode(Node):
             self.ser = serial.serial_for_url('loop://', baudrate = 115200, timeout = 1)
         else:
             self.ser = serial.Serial(
-                'dev/ttyAMA0',
+                '/dev/ttyAMA0',
                 baudrate = 115200,
                 bytesize = 8,
                 timeout = 0.05,
@@ -32,24 +32,27 @@ class SerialConnectionNode(Node):
             10
         )
 
-        # Read serial input every 10 ms
-        self.read_timer = self.create_timer(0.01, self.read_serial)
+        # Read serial input every 100 ms
+        self.read_timer = self.create_timer(0.1, self.read_serial)
 
-    def serial_write_callback(self, msg:String):
+
+    def serial_write_callback(self, msg: String):
         try:
-            msg_array = msg.data.split("/")
-            self.ser.write(msg_array)
-
+            data = msg.data.encode("utf-8")
+            self.ser.write(data)
         except Exception as e:
             self.get_logger().error(f"Serial write failed: {e}")
 
+
     def read_serial(self):
         try:
-            line = self.ser.readline().decode('utf-8').strip()
+            raw = self.ser.readline()
+            line = raw.decode("utf-8", errors="ignore").strip()
 
-            if len(line) > 0:
-                # Publish
-                self.serial_read_publisher.publish(line)
+            if line:
+                msg = String()
+                msg.data = line
+                self.serial_read_publisher.publish(msg)
 
         except Exception as e:
             self.get_logger().error(f"Serial read failed: {e}")

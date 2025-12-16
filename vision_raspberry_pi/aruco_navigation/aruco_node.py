@@ -56,7 +56,7 @@ class ArucoNode(Node):
 
     def collision_callback(self, msg:Bool):
 
-        self.collision_detected = msg.Data
+        self.collision_detected = msg.data
         
 
 

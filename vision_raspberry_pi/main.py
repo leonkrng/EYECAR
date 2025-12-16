@@ -21,7 +21,6 @@ from lidar_sensor.lidar_node import LidarNode
 from camera.camera_node import CameraNode
 import overlay
 from std_msgs.msg import String
-from main_node import MainNode
 from aruco_navigation.aruco_node import ArucoNode
 from camera.camera_node import CameraNode
 from overlay.overlay_node import OverlayNode

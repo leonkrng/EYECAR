@@ -186,11 +186,12 @@ def draw_overlay(frame,
         print("[ERROR]: ", e)
 
     # Set window properties
-    window_name = "EYE-CAR"
-    cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-    cv2.moveWindow(window_name, 0, 36)
-    cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    cv2.resizeWindow(window_name, 832, 600)
-    cv2.waitKey(1)
-    cv2.imshow(window_name, frame)
+    #window_name = "EYE-CAR"
+    #cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+    #cv2.moveWindow(window_name, 0, 36)
+    #cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    #cv2.resizeWindow(window_name, 832, 600)
+    #cv2.imshow(window_name, frame)
+    #cv2.waitKey(1)
+    return frame
 
