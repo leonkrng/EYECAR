@@ -22,7 +22,7 @@ RFM69 radio(25,4);   //SS-Pin, Interrupt-Pin
 #define debugLevel 0 // standard debug: 1; debug of movement directions
 #define override 1 // when set to a value higher than 0, an override is used, otherwise the sticks are interpreted binary (not implemented)
 #define DEBUG_GREIFER 0
-#define DEBUG_SPI_RECIEVE 1
+#define DEBUG_SPI_RECIEVE 0
 #define automatic 0 // 0: static use of gamepad for movement control, 1: static use of raspi for movement control,
                     // 2: Mode can be switched with gamepad (not implemented)
 
@@ -54,6 +54,7 @@ float minStickValRel = 35; // minimal relativ value of the analogsticks where a 
 movementDirections movementCalculatedGamepad, movementCalculatedRaspi; // calculated movement from analog values, initialised with stop = 0 
 volatile float VL, VR, HL, HR;
 float VLneu, VRneu, HLneu, HRneu;
+float factorOld, factorNew; 
 float stellwert[4], stellwertSoll[4];
 
 unsigned long lastStep[4];
@@ -65,12 +66,8 @@ bool high;
 byte SPISEND,SPIRECEIVE;    
 
 int TIMEFACTOR = 50;      //Vorher: 50
-int MAXSPEED = 7;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
+int MAXSPEED = 10;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
 int UPPERLIMITDELAY = 300;
-
-
-
-int stoppBremseVorne;
 
 
 volatile int count;    // Trigger 
@@ -78,9 +75,9 @@ int totalInterrupts;   // counts the number of triggering of the alarm
 hw_timer_t * timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 uint cycles;
-int genClock[4];
-bool stateOutput[4];
-volatile int interruptGrenzwert[4];
+int genClock[4]; // counter for comparison in ISR
+bool stateOutput[4]; // toggling value used inn ISR to changed Value off stepPins
+volatile int interruptGrenzwert[4]; // val to compare against genClock[] in ISR
 
 //________________________________________________________________________________
 byte led = 13;
@@ -122,29 +119,21 @@ char receivedChars[64]; // an array to store the received data
 short int stellwertRecord[100][3];
 short int recordPlaybackCounter;
 
-float UltrschallbremseY = 1, UltrschallbremseX = 1;   //Faktor 0-1! 1 = keine Einschränkung, 0 = maximale Einschränkung
 int arucoY, arucoZ;
 bool arucoDrehend;
 
-void IRAM_ATTR onTime() {
-  
+void IRAM_ATTR onTime() { // definition of the ISR -> IRAM_ATTR functions is saved in RAM
+  portENTER_CRITICAL_ISR(&timerMux); // safety und so -> no other interrupts during the call of this ISR
+  for(int i = 0; i<= 3; i++) {
+    genClock[i]++; // increment counter
 
-   portENTER_CRITICAL_ISR(&timerMux);
-   genClock[0]++;
-   genClock[1]++;
-   genClock[2]++;
-   genClock[3]++;
-   
-   for(int i = 0; i<= 3; i++) {
-    if(genClock[i] > interruptGrenzwert[i] && interruptGrenzwert[i] != 0) {
-      stateOutput[i] = !stateOutput[i];
-      digitalWrite(belegungOutputsStep[i], stateOutput[i]); 
-      genClock[i] = 0;
+   if(genClock[i] >= interruptGrenzwert[i] && interruptGrenzwert[i] != 0) { // wenn counter is greater than the calculated limit and the limit is not zero
+     stateOutput[i] = !stateOutput[i]; // toggle output bit
+     digitalWrite(belegungOutputsStep[i], stateOutput[i]); // write DOUT with the determined value
+     genClock[i] = 0; // reset counter
     }
-   }
-     
-   
-   portEXIT_CRITICAL_ISR(&timerMux);
+  }
+  portEXIT_CRITICAL_ISR(&timerMux);
 }
 
 void setup() {  
@@ -427,17 +416,15 @@ void recordStellwerte() {
     for(int i =99; i>=1; i--) {                                                 //Schleife von 99 bis 1 über das Record Array
       stellwertRecord[i][0] = stellwertRecord[i-1][0];                          //Die letzen Werte alle einen Wert nach unten rücken
       stellwertRecord[i][1] = stellwertRecord[i-1][1];
-      stellwertRecord[i][2] = stellwertRecord[i-1][2];
-      
-    }
-    
+      stellwertRecord[i][2] = stellwertRecord[i-1][2];      
+    }    
     stellwertRecord[0][0] = stellwert[0];                                       //Aktuellste Stellwerte auf Reihe 0 schreiben
     stellwertRecord[0][1] = stellwert[1];
     stellwertRecord[0][2] = stellwert[2];
   }
 }
 
-//calulating the Movement direction out of the analog values coming from the gamepad
+// calulating the Movement direction out of the analog values coming from the gamepad
 // returns enum which determins the movement
 movementDirections calcMovementFromAnalogVals (float turning, float rightLeft, float fowardBackward) {
   movementDirections movementCalculatedOut; // tmp - just an output
@@ -485,6 +472,7 @@ movementDirections calcMovementFromAnalogVals (float turning, float rightLeft, f
   return movementCalculatedOut;
 }
 
+
 void calcMecanumProportion(movementDirections movementCalculatedGamepad, movementDirections movementCalculatedRaspi) {
 #if automatic == 0
   switch (movementCalculatedGamepad)
@@ -528,31 +516,31 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
   
   case movementDirections::fwl :
+    VLneu = 0; 
+    VRneu = 100;
+    HLneu = 100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::fwr :
     VLneu = 100;
     VRneu = 0;
     HLneu = 0;
     HRneu = 100;
     break;
 
-  case movementDirections::fwr :
-    VLneu = 0;
-    VRneu = 100;
-    HLneu = 100;
-    HRneu = 0;
-    break;
-
   case movementDirections::bwl :
-    VLneu = 0;
-    VRneu = -100;
-    HLneu = -100;
-    HRneu = 0;
-    break;
-
-  case movementDirections::bwr :
     VLneu = -100;
     VRneu = 0;
     HLneu = 0;
     HRneu = -100;
+    break;
+
+  case movementDirections::bwr :
+    VLneu = 0;
+    VRneu = -100;
+    HLneu = -100;
+    HRneu = 0;
     break;
 
   case movementDirections::tl :
@@ -601,19 +589,20 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
   }
 
-  
-  float faktorAlt = 0.9, faktorNeu = 0.1; // first setting faktorAlt = 0.975, faktorNeu = 0.025;
-
-  VL = faktorAlt * VL + faktorNeu * VLneu;
-  VR = faktorAlt * VR + faktorNeu * VRneu;
-  HL = faktorAlt * HL + faktorNeu * HLneu;
-  HR = faktorAlt * HR + faktorNeu * HRneu;
- 
-  if(printctr == 100) {
-    printctr = 0;
-  } else {
-    printctr++;
+  if (VLneu == 0 && VRneu == 0 && HLneu && HRneu == 0) { // when every new motor value is zero -> stop command
+    factorOld = 0.925; // steeper slope while breaking for safety reasons 
+  } else { // any other command
+    factorOld = 0.9; // acceleration is done a little more chill
   }
+  
+  factorNew = 1 - factorOld; // calcute other factor
+  
+
+  VL = factorOld * VL + factorNew * VLneu; // P-Controller
+  VR = factorOld * VR + factorNew * VRneu;
+  HL = factorOld * HL + factorNew * HLneu;
+  HR = factorOld * HR + factorNew * HRneu;
+ 
    
   VL >= 0 ? digitalWrite(DO_Dir1, LOW) : digitalWrite(DO_Dir1, HIGH);
   VR >= 0 ? digitalWrite(DO_Dir2, HIGH) : digitalWrite(DO_Dir2, LOW);
@@ -829,7 +818,7 @@ void loop() {
    
    processData(); // load data from gamepade
    Greifeinheit(); // do stuff with the gripping unit
-   movementCalculatedGamepad = calcMovementFromAnalogVals(stellwert[0], stellwert[2], stellwert[3]); // calculate the movement direction
+   movementCalculatedGamepad = calcMovementFromAnalogVals(stellwert[0], stellwert[2], stellwert[3]); // calculate the movement direction from stick positions
    calcMecanumProportion(movementCalculatedGamepad, movementCalculatedRaspi); // calculate the proportion of the Mecanum wheels for the given movement direction
    communicationArduinoNano(); // 
   
