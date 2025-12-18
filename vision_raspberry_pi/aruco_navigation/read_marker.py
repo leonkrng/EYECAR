@@ -7,26 +7,20 @@ from aruco_navigation import calc_navigation
 from aruco_navigation import movement_enum
 
 def read_marker(frame, 
-                prev_aruco_navigation_active,
-                navigation_list,
-                max_marker_size,
-                camera_resolution,
-                actual_ID):
+                prev_aruco_navigation_active=0,
+                navigation_list=[1, 2, 3, 4],
+                max_marker_size=0.4,
+                camera_resolution=[832, 600],
+                actual_ID=0):
 
     grayscale_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     key = getattr(aruco, f"DICT_5X5_50")
 
-    # Cv2.aruco changed the API with V4.7.0
-    if socket.gethostname() != "eye-car-pi":
-        arucoDict = aruco.getPredefinedDictionary(key)
-        arucoParam = aruco.DetectorParameters()
-        arucoDetector = aruco.ArucoDetector(arucoDict,arucoParam) 
-        (corners, ids, rejected) = arucoDetector.detectMarkers(grayscale_frame)
-    else:
-        arucoDict = aruco.Dictionary_get(key)
-        arucoParam = aruco.DetectorParameters_create()
-        (corners, ids, rejected) = aruco.detectMarkers(grayscale_frame, arucoDict, parameters=arucoParam)
+    arucoDict = aruco.getPredefinedDictionary(key)
+    arucoParam = aruco.DetectorParameters()
+    arucoDetector = aruco.ArucoDetector(arucoDict,arucoParam) 
+    (corners, ids, rejected) = arucoDetector.detectMarkers(grayscale_frame)
 
     command = movement_enum.MovementEnum.NO_MARKER
 
@@ -56,4 +50,4 @@ def read_marker(frame,
             else:
                 command = MovementEnum.NO_MARKER
 
-    return command
+    return (command, frame)

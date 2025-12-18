@@ -1,6 +1,10 @@
 import cv2 
 
-def draw_overlay(frame, telemetry_data, navigation_list, actual_ID, prev_aruco_navigation_active):
+def draw_overlay(frame,
+                 telemetry_data=22*[-1],
+                 navigation_list=[1, 2, 3, 4],
+                 actual_ID=0,
+                 prev_aruco_navigation_active=0):
     try:
         
             cv2.rectangle(frame, (15,20), (275,190), (50,50,50), -1) #grauer Hintergrund Telemetriedaten
@@ -182,9 +186,12 @@ def draw_overlay(frame, telemetry_data, navigation_list, actual_ID, prev_aruco_n
         print("[ERROR]: ", e)
 
     # Set window properties
-    window_name = "EYE-CAR"
-    cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-    cv2.moveWindow(window_name, 0, 36)
-    cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    #window_name = "EYE-CAR"
+    #cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
+    #cv2.moveWindow(window_name, 0, 36)
+    #cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    #cv2.resizeWindow(window_name, 832, 600)
+    #cv2.imshow(window_name, frame)
+    #cv2.waitKey(1)
+    return frame
 
-    cv2.imshow(window_name, frame)

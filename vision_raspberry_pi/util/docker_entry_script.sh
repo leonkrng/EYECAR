@@ -13,7 +13,7 @@ source ~/ros2_ws/install/local_setup.bash
 
 echo "Starting front-node."
 rm ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
-cp /app/release/ldlidar_front.yaml ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
+cp /app/release/docker/ldlidar_front.yaml ~/ros2_ws/src/ldrobot-lidar-ros2/ldlidar_node/params/ldlidar.yaml
 ros2 launch ldlidar_node ldlidar_bringup.launch.py &
 #ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link ldlidar_front &
 

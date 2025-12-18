@@ -3,7 +3,7 @@ FROM rwthika/ros2:humble-desktop-full-arm64
 WORKDIR /app
 
 # Python requirements for pip
-COPY requirements.txt .
+COPY docker/requirements.txt .
 
 # Install apt packages
 RUN apt-get update && apt-get install -y python3 \
