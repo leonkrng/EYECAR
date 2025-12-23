@@ -44,7 +44,7 @@ class ArucoNode(Node):
         msg = String()
 
         if self.collision_detected:
-            msg.data = str(MovementEnum.STOP)
+            msg.data = str(MovementEnum.STOP.value)
         else:
             msg.data = str(str(command.value))
             

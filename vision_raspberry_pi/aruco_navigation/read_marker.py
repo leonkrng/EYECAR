@@ -24,9 +24,6 @@ def read_marker(frame,
 
     command = movement_enum.MovementEnum.NO_MARKER
 
-    #if enumerate(corners) is None:
-    #    return command
-
     for n, foundItem in enumerate(corners):
 
         # Calculate marker size
