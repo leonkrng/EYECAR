@@ -5,6 +5,7 @@ from std_msgs.msg import String
 from std_msgs.msg import Bool 
 from cv_bridge import CvBridge
 import cv2
+import cv2.aruco as aruco
 from aruco_navigation.read_marker import read_marker
 from aruco_navigation.movement_enum import MovementEnum
 
@@ -57,7 +58,49 @@ class ArucoNode(Node):
     def collision_callback(self, msg:Bool):
 
         self.collision_detected = msg.data
-        
+
+
+    # Reads the marker on the frame and returns the corners and the id.
+    def read_marker(self, frame_to_read):
+
+        grayscale_frame = cv2.cvtColor(frame_to_read, cv2.COLOR_BGR2GRAY)
+
+        key = getattr(aruco, f"DICT_5X5_50")
+
+        aruco_dict = aruco.getPredefinedDictionary(key)
+        aruco_param = aruco.DetectorParameters()
+        aruco_detector = aruco.ArucoDetector(aruco_dict, aruco_param)
+
+        (corners, ids, rejected) = aruco_detector.detectMarkers(grayscale_frame)
+
+        return (corners[0], ids[0])
+
+    # Calculates the centerpoint and the diagonales of the marker.
+    def calc_marker_pos(self, corners, id, frame):
+
+        (top_left, top_right, bottom_right, bottom_left) = corners
+
+        # Convert coordiantes to integer
+        top_right = (int(top_right[0]), int(top_right[1]))
+        top_left = (int(top_left[0]), int(top_left[1]))
+        bottom_righ = (int(bottom_right[0]), int(bottom_right[1]))
+        bottom_left = (int(bottom_left[0]), int(bottom_left[1]))
+
+        # ToDo publish coordinates so the overlay-node an draw on the frame
+
+        # Calculate centerpoint
+        center_x = int((top_left[0] + bottom_right[0]) / 2.0)
+        center_y = int((top_left[1] + bottom_right[1]) / 2.0)
+
+        # Calculate diagonals
+        diag_TL_BR = pow(pow(bottom_right[0] - top_left[0], 2) + pow(bottom_right[1] - top_left[1], 2), 0.5)
+        diag_TR_BL = pow(pow(top_right[0] - bottom_left[0], 2) + pow(top_right[1] - bottom_left[1], 2), 0.5)
+
+        return (center_x, center_y, diag_TL_BR, diag_TR_BL)
+
+
+
+
 
 
 
