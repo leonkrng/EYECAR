@@ -39,6 +39,13 @@ class ArucoNode(Node):
         
     def image_raw_callback(self, msg:Image):
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+
+        (corners, id) = self.read_marker(frame)
+        (center_x, center_y, diag_TL_BR, diag_TR_BL) = self.calc_marker_pos(corners, id)
+
+
+
+        ## old code 
         
         command, processed_frame = read_marker(frame)
 
@@ -76,7 +83,7 @@ class ArucoNode(Node):
         return (corners[0], ids[0])
 
     # Calculates the centerpoint and the diagonales of the marker.
-    def calc_marker_pos(self, corners, id, frame):
+    def calc_marker_pos(self, corners, id):
 
         (top_left, top_right, bottom_right, bottom_left) = corners
 
@@ -86,7 +93,7 @@ class ArucoNode(Node):
         bottom_righ = (int(bottom_right[0]), int(bottom_right[1]))
         bottom_left = (int(bottom_left[0]), int(bottom_left[1]))
 
-        # ToDo publish coordinates so the overlay-node an draw on the frame
+        # ToDo publish coordinates and id to the overlay-node an draw on the frame
 
         # Calculate centerpoint
         center_x = int((top_left[0] + bottom_right[0]) / 2.0)
@@ -97,10 +104,6 @@ class ArucoNode(Node):
         diag_TR_BL = pow(pow(top_right[0] - bottom_left[0], 2) + pow(top_right[1] - bottom_left[1], 2), 0.5)
 
         return (center_x, center_y, diag_TL_BR, diag_TR_BL)
-
-
-
-
 
 
 
