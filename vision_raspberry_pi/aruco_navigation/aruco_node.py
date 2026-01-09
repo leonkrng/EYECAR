@@ -6,8 +6,9 @@ from std_msgs.msg import Bool
 from cv_bridge import CvBridge
 import cv2
 import cv2.aruco as aruco
-from aruco_navigation.read_marker import read_marker
 from aruco_navigation.movement_enum import MovementEnum
+from aruco_navigation.marker_model import MarkerModel
+from overlay.draw_marker_border import draw_marker_border
 
 class ArucoNode(Node):
     def __init__(self):
@@ -35,30 +36,36 @@ class ArucoNode(Node):
 
         self.collision_detected = False
         self.bridge = CvBridge()
+        self.current_marker = None
 
         
     def image_raw_callback(self, msg:Image):
+
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
 
-        (corners, id) = self.read_marker(frame)
-        (center_x, center_y, diag_TL_BR, diag_TR_BL) = self.calc_marker_pos(corners, id)
+        (corners, marker_id) = self.read_marker(frame)
 
-
-
-        ## old code 
+        if marker_id is not None and corners:
+            draw_marker_border(frame, corners, marker_id)
         
-        command, processed_frame = read_marker(frame)
+            if self.current_marker is None or self.current_marker.id != marker_id: 
+                # First or new marker detected
+                self.current_marker = MarkerModel(corners, marker_id)
+
+            command = self.align_to_marker(frame)
+
+            if command is None:
+                # EYECAR is algined to marker
+                # TODO: Add main-movement calculation here
 
         msg = String()
 
         if self.collision_detected:
-            msg.data = str(MovementEnum.STOP.value)
-        else:
-            msg.data = str(str(command.value))
+            command = MovementEnum.STOP
             
         self.command_publisher.publish(msg)
 
-        msg_frame = self.bridge.cv2_to_imgmsg(processed_frame, encoding="bgr8")
+        msg_frame = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
         self.frame_processed_publisher.publish(msg_frame)
 
 
@@ -80,30 +87,40 @@ class ArucoNode(Node):
 
         (corners, ids, rejected) = aruco_detector.detectMarkers(grayscale_frame)
 
-        return (corners[0], ids[0])
+        if ids is None or len(corners) == 0:
+            return None, None
 
-    # Calculates the centerpoint and the diagonales of the marker.
-    def calc_marker_pos(self, corners, id):
-
-        (top_left, top_right, bottom_right, bottom_left) = corners
-
-        # Convert coordiantes to integer
-        top_right = (int(top_right[0]), int(top_right[1]))
-        top_left = (int(top_left[0]), int(top_left[1]))
-        bottom_righ = (int(bottom_right[0]), int(bottom_right[1]))
-        bottom_left = (int(bottom_left[0]), int(bottom_left[1]))
-
-        # ToDo publish coordinates and id to the overlay-node an draw on the frame
-
-        # Calculate centerpoint
-        center_x = int((top_left[0] + bottom_right[0]) / 2.0)
-        center_y = int((top_left[1] + bottom_right[1]) / 2.0)
-
-        # Calculate diagonals
-        diag_TL_BR = pow(pow(bottom_right[0] - top_left[0], 2) + pow(bottom_right[1] - top_left[1], 2), 0.5)
-        diag_TR_BL = pow(pow(top_right[0] - bottom_left[0], 2) + pow(top_right[1] - bottom_left[1], 2), 0.5)
-
-        return (center_x, center_y, diag_TL_BR, diag_TR_BL)
+        return corners[0], ids[0]
 
 
+    # Aligns the EYECAR to the marker. Only direction and not distance.
+    def align_to_marker(self, frame):
 
+        height, width = frame.shape[:2]
+
+        # The span between 40% and 60% off the frame is considered to be the middle
+        border_left = int(width * 0.4)
+        border_right = int(width * 0.6)
+
+        if self.current_marker.center_x < border_left:
+            # Marker too far to the left
+            return MovementEnum.LEFT
+
+        if self.current_marker.center_x > border_right:
+            # Marker too far to the right
+            return MovementEnum.RIGHT
+
+        side_diff = self.current_marker.side_TL_BL - self.current_marker.side_TR_BR
+
+        # A side-difference from <30 is considered straight
+        if side_diff > 30:
+            # Marker is seen from the left side
+            return MovementEnum.TURN_LEFT
+
+        if side_diff < 30:
+            # Marker is seen from the right side
+            return MovementEnum.TURN_RIGHT
+
+        if self.current_marker.center_x > border_left and self.current_marker.center_x < border_right:
+            # Marker is in the middle and therefore aligned
+            return None
