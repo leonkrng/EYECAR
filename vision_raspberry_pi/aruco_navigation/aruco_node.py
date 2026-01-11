@@ -45,24 +45,28 @@ class ArucoNode(Node):
 
         (corners, marker_id) = self.read_marker(frame)
 
-        if marker_id is not None and corners:
+        command = MovementEnum.STOP
+
+        if marker_id is not None and corners.any():
             draw_marker_border(frame, corners, marker_id)
         
-            if self.current_marker is None or self.current_marker.id != marker_id: 
-                # First or new marker detected
-                self.current_marker = MarkerModel(corners, marker_id)
+            self.current_marker = MarkerModel(corners, marker_id)
 
             command = self.align_to_marker(frame)
 
             if command is None:
+                self.get_logger().info(f'Command is None')
+                pass
                 # EYECAR is algined to marker
                 # TODO: Add main-movement calculation here
 
-        msg = String()
 
         if self.collision_detected:
             command = MovementEnum.STOP
             
+        msg = String()
+        msg.data = str(command.value)
+
         self.command_publisher.publish(msg)
 
         msg_frame = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
@@ -90,7 +94,7 @@ class ArucoNode(Node):
         if ids is None or len(corners) == 0:
             return None, None
 
-        return corners[0], ids[0]
+        return corners[0][0], ids[0]
 
 
     # Aligns the EYECAR to the marker. Only direction and not distance.
@@ -112,15 +116,15 @@ class ArucoNode(Node):
 
         side_diff = self.current_marker.side_TL_BL - self.current_marker.side_TR_BR
 
-        # A side-difference from <30 is considered straight
-        if side_diff > 30:
+        # A side-difference from <50 is considered straight
+        if side_diff > 50:
             # Marker is seen from the left side
             return MovementEnum.TURN_LEFT
 
-        if side_diff < 30:
+        if side_diff < -50:
             # Marker is seen from the right side
             return MovementEnum.TURN_RIGHT
 
         if self.current_marker.center_x > border_left and self.current_marker.center_x < border_right:
             # Marker is in the middle and therefore aligned
-            return None
+            return MovementEnum.STOP 
