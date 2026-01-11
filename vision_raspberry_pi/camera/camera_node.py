@@ -3,6 +3,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
+import os
 
 class CameraNode(Node):
     def __init__(self):
@@ -18,6 +19,8 @@ class CameraNode(Node):
             "udpsrc port=8000 ! jpegdec ! videoconvert ! "
             "appsink emit-signals=false drop=true sync=false max-buffers=1")
         
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.fallback_image_path = os.path.join(base_dir, "no_signal.jpg")
 
         self.publish_fallback()
         self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
@@ -43,7 +46,7 @@ class CameraNode(Node):
         self.frame_raw_publisher.publish(msg)
 
     def publish_fallback(self):
-        frame = cv2.imread("no_signal.jpg")
+        frame = cv2.imread(self.fallback_image_path)
 
         if frame is None:
             self.get_logger().error("Fallback image 'no_signal.jpg' not found.")
