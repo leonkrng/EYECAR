@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool
-import bisect
+import math
 
 class LidarNode(Node):
 
@@ -20,16 +20,29 @@ class LidarNode(Node):
                                                          10)
 
 
-    def lidar_scan_callback(self, msg: LaserScan):
+    def lidar_scan_callback(self, scan: LaserScan):
 
-        max_distance = min(msg.ranges)
+        valid_ranges = [
+            r for r in scan.ranges
+            if not math.isinf(r) and not math.isnan(r) and r > 0.0
+        ]
 
-        if max_distance <= 0.3:
-            self.get_logger().info(f'Collision detectet: {max_distance} m')
-            msg = Bool()
-            msg.data = True
-            self.collision_publisher.publish(msg)
+        if not valid_ranges:
+            return
+
+        min_distance = min(valid_ranges)
+
+        collision = False
+
+        if min_distance <= 0.3:
+            collision = True
+            self.get_logger().info(
+                f'Collision detected: {min_distance:.2f} m'
+            )
+
+        collision_msg = Bool()
+        collision_msg.data = collision 
+        self.collision_publisher.publish(collision_msg)
 
 
-
-        
+            
