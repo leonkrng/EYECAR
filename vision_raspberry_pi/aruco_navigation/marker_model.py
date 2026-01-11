@@ -21,32 +21,32 @@ class MarkerModel():
         self._side_TL_BL = pow(pow(bottom_left[0] - top_left[0], 2) + pow(bottom_left[1] - top_left[1], 2), 0.5)
         self._side_TR_BR = pow(pow(bottom_right[0] - top_right[0], 2) + pow(bottom_right[1] - top_right[1], 2), 0.5)
 
-        # Properties
-        @property
-        def center_x(self):
-            return self._center_x
+    # Properties
+    @property
+    def center_x(self):
+        return self._center_x
 
-        @property
-        def center_y(self):
-            return self._center_y
+    @property
+    def center_y(self):
+        return self._center_y
 
-        @property
-        def diag_TL_BR(self):
-            return self._diag_TL_BR
+    @property
+    def diag_TL_BR(self):
+        return self._diag_TL_BR
 
-        @property
-        def diag_TR_BL(self):
-            return self._diag_TR_BL
+    @property
+    def diag_TR_BL(self):
+        return self._diag_TR_BL
 
-        @property
-        def side_TL_BL(self):
-            return self._side_TL_BL
+    @property
+    def side_TL_BL(self):
+        return self._side_TL_BL
 
-        @property
-        def side_TR_BR(self):
-            return self._side_TR_BR
+    @property
+    def side_TR_BR(self):
+        return self._side_TR_BR
 
-        @property
-        def marker_id(self):
-            return self._marker_id
+    @property
+    def marker_id(self):
+        return self._marker_id
 
