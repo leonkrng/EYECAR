@@ -52,18 +52,19 @@ class ArucoNode(Node):
         
             self.current_marker = MarkerModel(corners, marker_id)
 
-            command = self.align_to_marker(frame)
+            command, aligned = self.align_to_marker(frame)
 
-            if command is None:
-                self.get_logger().info(f'Command is None')
+            if aligned:
                 pass
                 # EYECAR is algined to marker
                 # TODO: Add main-movement calculation here
 
 
-        if self.collision_detected:
+        if self.collision_detected or command is None:
             command = MovementEnum.STOP
             
+
+        # Publishing command and processed frame
         msg = String()
         msg.data = str(command.value)
 
@@ -97,8 +98,10 @@ class ArucoNode(Node):
         return corners[0][0], ids[0]
 
 
-    # Aligns the EYECAR to the marker. Only direction and not distance.
+    # Aligns the EYECAR to the marker. 
     def align_to_marker(self, frame):
+
+        aligned = False
 
         height, width = frame.shape[:2]
 
@@ -106,25 +109,38 @@ class ArucoNode(Node):
         border_left = int(width * 0.4)
         border_right = int(width * 0.6)
 
+        # A <20% difference between the lengt of the sides is considered straight
+        side_diff = int(self.current_marker.side_TL_BL / self.current_marker.side_TR_BR)
+
+        # If the marker the diagonales are 40% of the widht the marker is considered close enough
+        max_size = 0.4 * width 
+
         if self.current_marker.center_x < border_left:
             # Marker too far to the left
-            return MovementEnum.LEFT
+            return MovementEnum.LEFT, aligned
 
-        if self.current_marker.center_x > border_right:
+        elif self.current_marker.center_x > border_right:
             # Marker too far to the right
-            return MovementEnum.RIGHT
+            return MovementEnum.RIGHT, aligned
 
-        side_diff = self.current_marker.side_TL_BL - self.current_marker.side_TR_BR
-
-        # A side-difference from <50 is considered straight
-        if side_diff > 50:
+        elif side_diff > 1.2 :
             # Marker is seen from the left side
-            return MovementEnum.TURN_LEFT
+            return MovementEnum.TURN_LEFT, aligned
 
-        if side_diff < -50:
+        elif side_diff < 0.8:
             # Marker is seen from the right side
-            return MovementEnum.TURN_RIGHT
+            return MovementEnum.TURN_RIGHT, aligned
 
-        if self.current_marker.center_x > border_left and self.current_marker.center_x < border_right:
-            # Marker is in the middle and therefore aligned
-            return MovementEnum.STOP 
+        elif self.current_marker.center_x > border_left and self.current_marker.center_x < border_right:
+            # Marker is in the middle but too far away
+            return MovementEnum.FORWARD, aligned 
+
+        elif self.current_marker.diag_TL_BR > max_size and self.current_marker.diag_TR_BL > max_size:
+            # Marker is close enough and aligend
+            aligned = True
+            return MovementEnum.STOP, aligned
+        
+        else
+            # Fallback 
+            return MovementEnum.STOP, aligned
+
