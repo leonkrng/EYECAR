@@ -119,28 +119,27 @@ class ArucoNode(Node):
             # Marker too far to the left
             return MovementEnum.LEFT, aligned
 
-        elif self.current_marker.center_x > border_right:
+        if self.current_marker.center_x > border_right:
             # Marker too far to the right
             return MovementEnum.RIGHT, aligned
 
-        elif side_diff > 1.2 :
+        if side_diff > 1.2 :
             # Marker is seen from the left side
             return MovementEnum.TURN_LEFT, aligned
 
-        elif side_diff < 0.8:
+        if side_diff < 0.8:
             # Marker is seen from the right side
             return MovementEnum.TURN_RIGHT, aligned
 
-        elif self.current_marker.center_x > border_left and self.current_marker.center_x < border_right:
+        if self.current_marker.center_x > border_left and self.current_marker.center_x < border_right:
             # Marker is in the middle but too far away
             return MovementEnum.FORWARD, aligned 
 
-        elif self.current_marker.diag_TL_BR > max_size and self.current_marker.diag_TR_BL > max_size:
+        if self.current_marker.diag_TL_BR > max_size and self.current_marker.diag_TR_BL > max_size:
             # Marker is close enough and aligend
             aligned = True
             return MovementEnum.STOP, aligned
         
-        else
-            # Fallback 
-            return MovementEnum.STOP, aligned
+        # Fallback 
+        return MovementEnum.STOP, aligned
 
