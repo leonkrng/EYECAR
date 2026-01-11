@@ -35,7 +35,7 @@ class SerialConnectionNode(Node):
 
     def serial_write_callback(self, msg: String):
         try:
-            data = msg.data.encode("utf-8") + "\n"
+            data = msg.data.encode("utf-8") + b"\n"
             self.ser.write(data)
         except Exception as e:
             self.get_logger().error(f"Serial write failed: {e}")
