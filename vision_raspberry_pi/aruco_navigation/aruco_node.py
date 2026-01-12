@@ -109,8 +109,8 @@ class ArucoNode(Node):
         border_left = int(width * 0.4)
         border_right = int(width * 0.6)
 
-        # A <20% difference between the lengt of the sides is considered straight
-        side_diff = int(self.current_marker.side_TL_BL / self.current_marker.side_TR_BR)
+        # A <10% difference between the lengt of the sides is considered straight
+        side_diff = self.current_marker.side_TL_BL / self.current_marker.side_TR_BR
 
         # If the marker the diagonales are 40% of the widht the marker is considered close enough
         max_size = 0.4 * width 
@@ -123,11 +123,11 @@ class ArucoNode(Node):
             # Marker too far to the right
             return MovementEnum.RIGHT, aligned
 
-        if side_diff > 1.2 :
+        if side_diff > 1.1 :
             # Marker is seen from the left side
             return MovementEnum.TURN_LEFT, aligned
 
-        if side_diff < 0.8:
+        if side_diff < 0.9:
             # Marker is seen from the right side
             return MovementEnum.TURN_RIGHT, aligned
 
