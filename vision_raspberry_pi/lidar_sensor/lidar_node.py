@@ -54,7 +54,7 @@ class LidarNode(Node):
 
     def lidar_scan_callback(self, scan: LaserScan):
 
-        # Get the valid ranges of each EYECAR-side
+        # Get the valid ranges of each Lidar-side
         front_ranges_1 = self.get_valid_ranges(scan.ranges, self.FRONT_1_START, self.FRONT_1_END, scan.angle_min, scan.angle_increment)
         front_ranges_2 = self.get_valid_ranges(scan.ranges, self.FRONT_1_START, self.FRONT_2_END, scan.angle_min, scan.angle_increment)
         front_ranges = list(chain(front_ranges_1, front_ranges_2))

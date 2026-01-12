@@ -9,6 +9,8 @@ import cv2.aruco as aruco
 from aruco_navigation.movement_enum import MovementEnum
 from aruco_navigation.marker_model import MarkerModel
 from overlay.draw_marker_border import draw_marker_border
+from aruco_navigation.read_marker import read_marker
+from aruco_navigation.align_to_marker import align_to_marker 
 
 class ArucoNode(Node):
     def __init__(self):
@@ -20,10 +22,25 @@ class ArucoNode(Node):
             self.image_raw_callback,
             10)
 
-        self.collision_subscriber = self.create_subscription(
+        self.front_collision_subscriber = self.create_subscription(
                 Bool,
-                '/ldlidar_node/collision',
-                self.collision_callback,
+                '/ldlidar_node/collision_front',
+                self.front_collision_callback,
+                10)
+        self.back_collision_subscriber = self.create_subscription(
+                Bool,
+                '/ldlidar_node/collision_back',
+                self.back_collision_callback,
+                10)
+        self.right_collision_subscriber = self.create_subscription(
+                Bool,
+                '/ldlidar_node/collision_right',
+                self.right_collision_callback,
+                10)
+        self.left_collision_subscriber = self.create_subscription(
+                Bool,
+                '/ldlidar_node/collision_left',
+                self.left_collision_callback,
                 10)
 
         self.command_publisher = self.create_publisher(String,
@@ -34,7 +51,11 @@ class ArucoNode(Node):
                                                               '/camera/frame_processed',
                                                                10)
 
-        self.collision_detected = False
+        self.front_collision_detected = False
+        self.back_collision_detected = False
+        self.right_collision_detected = False
+        self.left_collision_detected = False
+
         self.bridge = CvBridge()
         self.current_marker = None
 
@@ -43,7 +64,7 @@ class ArucoNode(Node):
 
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
 
-        (corners, marker_id) = self.read_marker(frame)
+        (corners, marker_id) = read_marker(frame)
 
         command = MovementEnum.STOP
 
@@ -52,15 +73,16 @@ class ArucoNode(Node):
         
             self.current_marker = MarkerModel(corners, marker_id)
 
-            command, aligned = self.align_to_marker(frame)
+            command, aligned = align_to_marker(frame, self.current_marker)
 
             if aligned:
-                pass
-                # EYECAR is algined to marker
-                # TODO: Add main-movement calculation here
+                self.movement_routine(marker_id)
+                return
 
 
-        if self.collision_detected or command is None:
+        collision_detected = self.collision_in_direction(command)
+
+        if collision_detected or command is None:
             command = MovementEnum.STOP
             
 
@@ -74,72 +96,60 @@ class ArucoNode(Node):
         self.frame_processed_publisher.publish(msg_frame)
 
 
-    def collision_callback(self, msg:Bool):
 
-        self.collision_detected = msg.data
+    def front_collision_callback(self, msg:Bool):
 
+        self.front_collision_detected = msg.data
 
-    # Reads the marker on the frame and returns the corners and the id.
-    def read_marker(self, frame_to_read):
+    def back_collision_callback(self, msg:Bool):
 
-        grayscale_frame = cv2.cvtColor(frame_to_read, cv2.COLOR_BGR2GRAY)
+        self.back_collision_detected = msg.data
 
-        key = getattr(aruco, f"DICT_5X5_50")
+    def right_collision_callback(self, msg:Bool):
 
-        aruco_dict = aruco.getPredefinedDictionary(key)
-        aruco_param = aruco.DetectorParameters()
-        aruco_detector = aruco.ArucoDetector(aruco_dict, aruco_param)
+        self.back_collision_detected = msg.data
 
-        (corners, ids, rejected) = aruco_detector.detectMarkers(grayscale_frame)
+    def left_collision_callback(self, msg:Bool):
 
-        if ids is None or len(corners) == 0:
-            return None, None
+        self.left_collision_detected = msg.data
 
-        return corners[0][0], ids[0]
+    # Checks if there is a collision in the movement direction.
+    def collision_in_direction(self, command: "MovementEnum") -> bool:
+        block_left  = self.left_collision_detected or self.back_collision_detected
+        block_right = self.right_collision_detected or self.back_collision_detected
+        block_front = (
+            self.front_collision_detected
+            or self.left_collision_detected
+            or self.right_collision_detected
+        )
+        any_collision = (
+            self.front_collision_detected
+            or self.back_collision_detected
+            or self.right_collision_detected
+            or self.left_collision_detected
+        )
 
+        conditions = {
+            MovementEnum.FORWARD: block_front,
 
-    # Aligns the EYECAR to the marker. 
-    def align_to_marker(self, frame):
+            MovementEnum.LEFT: block_left,
+            MovementEnum.RIGHT: block_right,
 
-        aligned = False
+            MovementEnum.FORWARD_LEFT: (block_front or block_left),
+            MovementEnum.FORWARD_RIGHT: (block_front or block_right),
 
-        height, width = frame.shape[:2]
+            MovementEnum.BACKWARD: any_collision,
+            MovementEnum.BACKWARD_LEFT: any_collision,
+            MovementEnum.BACKWARD_RIGHT: any_collision,
+            MovementEnum.TURN_LEFT: any_collision,
+            MovementEnum.TURN_RIGHT: any_collision,
+            MovementEnum.FORWARD_TURN_LEFT: any_collision,
+            MovementEnum.FORWARD_TURN_RIGHT: any_collision,
+            MovementEnum.BACKWARD_TURN_LEFT: any_collision,
+            MovementEnum.BACKWARD_TURN_RIGHT: any_collision,
+        }
 
-        # The span between 40% and 60% off the frame is considered to be the middle
-        border_left = int(width * 0.4)
-        border_right = int(width * 0.6)
+        return conditions.get(command, False)
 
-        # A <10% difference between the lengt of the sides is considered straight
-        side_diff = self.current_marker.side_TL_BL / self.current_marker.side_TR_BR
-
-        # If the marker the diagonales are 40% of the widht the marker is considered close enough
-        max_size = 0.4 * width 
-
-        if self.current_marker.center_x < border_left:
-            # Marker too far to the left
-            return MovementEnum.LEFT, aligned
-
-        if self.current_marker.center_x > border_right:
-            # Marker too far to the right
-            return MovementEnum.RIGHT, aligned
-
-        if side_diff > 1.1 :
-            # Marker is seen from the left side
-            return MovementEnum.TURN_LEFT, aligned
-
-        if side_diff < 0.9:
-            # Marker is seen from the right side
-            return MovementEnum.TURN_RIGHT, aligned
-
-        if self.current_marker.center_x > border_left and self.current_marker.center_x < border_right:
-            # Marker is in the middle but too far away
-            return MovementEnum.FORWARD, aligned 
-
-        if self.current_marker.diag_TL_BR > max_size and self.current_marker.diag_TR_BL > max_size:
-            # Marker is close enough and aligend
-            aligned = True
-            return MovementEnum.STOP, aligned
-        
-        # Fallback 
-        return MovementEnum.STOP, aligned
-
+    def movement_routine(self, marker_id):
+        pass
