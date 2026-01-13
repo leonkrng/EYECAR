@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool
+from std_msgs.msg import Float32
 from itertools import chain
 import math
 
@@ -27,6 +28,10 @@ class LidarNode(Node):
         self.RIGHT_2_START = 6.109 # 350°
         self.RIGHT_2_END = 6.283 # 360°
 
+        # Zone for front distance in RAD. Used for alignment to workstations within collision zones.
+        self.WORKSTATION_START = 1.396 # 80°
+        self.WORKSTATION_END = 1.754 # 100°
+
         # Collision Thresholds in meter
         self.FRONT_COLL = 0.40
         self.BACK_COLL = 0.55
@@ -50,6 +55,9 @@ class LidarNode(Node):
         self.collision_publisher_right = self.create_publisher(Bool,
                                                          '/ldlidar_node/collision_right',
                                                          10)
+        self.workstation_distance_publisher = self.create_publisher(Float32,
+                                                                    '/ldlidar_node/workstation_distance',
+                                                                    10)
 
 
     def lidar_scan_callback(self, scan: LaserScan):
@@ -66,6 +74,7 @@ class LidarNode(Node):
         right_ranges_1 = self.get_valid_ranges(scan.ranges, self.RIGHT_1_START, self.RIGHT_1_END, scan.angle_min, scan.angle_increment)
         right_ranges_2 = self.get_valid_ranges(scan.ranges, self.RIGHT_2_START, self.RIGHT_2_END, scan.angle_min, scan.angle_increment)
         right_ranges = list(chain(right_ranges_1, right_ranges_2))
+
 
         coll_msg = Bool()
         coll_msg.data = False
@@ -99,6 +108,11 @@ class LidarNode(Node):
             coll_msg.data = False
             self.collision_publisher_right.publish(coll_msg)
 
+        # Calculate and publish distance to workstation
+        workstation_ranges = self.get_valid_ranges(scan.ranges, self.WORKSTATION_START, self.WORKSTATION_END, scan.angle_min, scan.angle_increment)
+
+        workstation_msg = Float32()
+        workstation_msg.data = min(workstation_ranges)
 
     def get_valid_ranges(self, scan_ranges, start, end, angle_min, angle_increment):
         i_begin = math.ceil((start - angle_min) / angle_increment)

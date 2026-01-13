@@ -18,4 +18,10 @@ class MovementEnum(Enum):
     BACKWARD_TURN_LEFT = 13
     BACKWARD_TURN_RIGHT = 14
 
+    GRIPPER_DOWN = 15 # Gripping-Position
+    GRIPPER_UP = 16 # Transport-Position
+    GRIPPER_OPEN = 17
+    GRIPPER_CLOSE = 18
 
+    LED_ON = 19
+    LED_OFF = 20
