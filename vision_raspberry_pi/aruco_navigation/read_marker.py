@@ -2,7 +2,7 @@ import cv2
 import cv2.aruco as aruco
 
 # Reads the marker on the frame and returns the corners and the id.
-def read_marker(self, frame_to_read):
+def read_marker(frame_to_read):
 
     grayscale_frame = cv2.cvtColor(frame_to_read, cv2.COLOR_BGR2GRAY)
 
