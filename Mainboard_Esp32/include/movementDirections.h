@@ -19,8 +19,8 @@ enum class movementDirections {
     fwtr,  // 12 foward and turning right
     bwtl,  // 13 backward and turning left
     bwtr,   // 14 backward and turning right
-    luup,   // 15 linearunit up 
-    ludw,   // 16 linearunit down
+    lugp,   // 15 linearunit grippingPos 
+    lutp,   // 16 linearunit transportPos
     grop,   // 17 open gripper
     grcl,   // 18 close gripper
     ledon,  // 19 LED ON
@@ -43,8 +43,8 @@ const char* movementDirectionNames[] = {
     "Forward + Turn Right",  // fwtr
     "Backward + Turn Left",  // bwtl
     "Backward + Turn Right",  // bwtr
-    "linearunit up",
-    "linearunit down",
+    "linearunit grippingPos",
+    "linearunit transportPos",
     "open gripper",
     "close gripper",
     "led on",
