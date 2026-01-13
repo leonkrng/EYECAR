@@ -28,9 +28,9 @@ class LidarNode(Node):
         self.RIGHT_2_END = 6.283 # 360°
 
         # Collision Thresholds in meter
-        self.FRONT_COLL = 0.30
-        self.BACK_COLL = 0.45
-        self.SIDE_COLL = 0.35
+        self.FRONT_COLL = 0.40
+        self.BACK_COLL = 0.55
+        self.SIDE_COLL = 0.45
 
         self.lidar_scan_subscriber = self.create_subscription(
             LaserScan,
