@@ -5,6 +5,7 @@
 #include "CtrlByte.h"
 
 #define debug 6
+#define DEBUG_STEPPERGRIPPER_SAFE 0
 
 /***********************************************************/
 
@@ -35,7 +36,7 @@ const float softLimitHighGripper = -18;
 // Height
 const float millisPerTurnHeight = 3; // 3 mm height per turn
 const float stepsPerRevolutionHeight = 800; // motor has 200 steps/rev, controller ist set to 1600 microsteps/rev
-const float speedMillisPerSecondHeight = 25; // on turn of the Motor is 3 mm in height 18 mm/s -> 6 1/s
+const float speedMillisPerSecondHeight = 18; // on turn of the Motor is 3 mm in height 18 mm/s -> 6 1/s
 const float accMillisPerSecondPerSecondHeight = 30;
 
 bool processMovementGripper = true; // should the gripper move? 
@@ -246,6 +247,8 @@ void loop() {
     #if (debug == 4)
       Serial.print("new CMD: ");
     #endif
+
+
   
     /* height */
     if (cmd.readBit(moveUp) and not (cmd.readBit(moveDown))) { 
@@ -271,7 +274,7 @@ void loop() {
       #if (debug == 4)
         Serial.println("close");
       #endif
-    } else if (cmd.readBit(openGripper) and not cmd.readBit(closeGripper)) {
+    } else if (cmd.readBit(openGripper) and not (cmd.readBit(closeGripper))) {
       stepperGripper.setupRelativeMoveInMillimeters(100); // // move to are very distant point -> movement is stopped by the limit switch
       #if (debug == 4)
         Serial.println("open");
@@ -290,7 +293,11 @@ void loop() {
   /* do the given Movements */
   stepperHeight.processMovement();
 
-  if ((cmd.readBit(movementIsSafe) and cmd.readBit(closeGripper)) or (cmd.readBit(openGripper) and digitalRead(limitSwitchGripper)== LOW)) {
+  if (cmd.readBit(movementIsSafe) and cmd.readBit(closeGripper)) {
     stepperGripper.processMovement();
-  }  
+  }
+
+  if (cmd.readBit(openGripper) and digitalRead(limitSwitchGripper)== LOW) {
+    stepperGripper.processMovement();
+  }
 }

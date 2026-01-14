@@ -29,17 +29,14 @@ RFM69 radio(25,4);   //SS-Pin, Interrupt-Pin
 #define DEBUG_CONTROLDATA 0
 #define DEBUG_SEND_STATUS 0
 #define DEBUG_MOVEMENT_DIRECTION 0
-#define DEBUG_TMPDIRECTION 1 
+#define DEBUG_TMPDIRECTION 0
 #define DEBUG_DATA_RASPI 0
+#define DEBUG_RASPI_MOVE 1
 
 //DB Für Greifeinheit
 char fromSerialMon = ' ';
 CtrlByte sendToMega; // Byte for controling gripper and linear unit
 bool GreifeinheitGrippingPos, GreifeinheitTransportPos, GreiferAuf, GreiferZu;
-/*Buttons buttonHoch(&GreifeinheitGrippingPos);
-Buttons buttonRunter(&GreifeinheitTransportPos);
-Buttons buttonAuf(&GreiferAuf);
-Buttons buttonZu(&GreiferZu);*/
 
 String datenstring;
 unsigned long receivedLast;
@@ -79,7 +76,8 @@ bool high;
 byte SPISEND,SPIRECEIVE;    
 
 int TIMEFACTOR = 50;      //Vorher: 50
-int MAXSPEED = 10;         //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
+int MAXSPEED_MAN = 10;    //Höchstgeschwindigkeit: je kleiner die Zahl desto schneller!
+int MAXSPEED_AUTO = 13; 
 int UPPERLIMITDELAY = 300;
 
 
@@ -421,12 +419,38 @@ void processData() {
     Serial.println(automodeActive);
   #endif
 
+#if DEBUG_RASPI_MOVE
+  Serial.println(static_cast<int>(movementCalculatedRaspi));
+#endif
 if (automodeActive) {
-  GreifeinheitGrippingPos = (movementCalculatedRaspi == movementDirections::lugp);
-  GreifeinheitTransportPos = (movementCalculatedRaspi == movementDirections::lutp);
+  if (movementCalculatedRaspi == movementDirections::lugp) {
+    GreifeinheitGrippingPos = true;
+  } else {
+    GreifeinheitGrippingPos = false;
+  }
+  if (movementCalculatedRaspi == movementDirections::lutp) {
+    GreifeinheitTransportPos = true;
+  } else {
+    GreifeinheitTransportPos = false;
+  }
 
-  GreiferAuf = (movementCalculatedRaspi == movementDirections::grop);
-  GreiferZu = (movementCalculatedRaspi == movementDirections::grcl);
+  // GreifeinheitGrippingPos = (movementCalculatedRaspi == movementDirections::lugp) ? true : false;
+  // GreifeinheitTransportPos = (movementCalculatedRaspi == movementDirections::lutp) ? true: false;
+
+  if (movementCalculatedRaspi == movementDirections::grop) {
+    GreiferAuf = true;
+  } else {
+    GreiferAuf = false;
+  }
+  if ( movementCalculatedRaspi == movementDirections::grcl) {
+    GreiferZu = true;
+  } else {
+    GreiferZu = false;
+  }
+
+  // GreiferAuf = (movementCalculatedRaspi == movementDirections::grop) ? true : false;
+  // GreiferZu = (movementCalculatedRaspi == movementDirections::grcl) ? true : false;
+
 } else {
   GreifeinheitGrippingPos = controldata[8];
   GreifeinheitTransportPos = controldata[10];
@@ -437,10 +461,11 @@ if (automodeActive) {
  
 
  #if DEBUG_GREIFER
-    Serial.print(controldata[8]);
-    Serial.print(controldata[10]);
-    Serial.print(controldata[9]);
-    Serial.println(controldata[11]);
+    Serial.print(automodeActive);
+    Serial.print(GreifeinheitGrippingPos);
+    Serial.print(GreifeinheitTransportPos);
+    Serial.print(GreiferAuf);
+    Serial.println(GreiferZu);
  #endif
 
  //Die Aruco-Navigation wird bei jedem Flankenwechsel gestartet/gestoppt!
@@ -632,17 +657,17 @@ if (automodeActive) { // when automode is active
     break;
 
   case movementDirections::bwtl :
-    VLneu = 100;
-    VRneu = 0;
-    HLneu = 100;
-    HRneu = 0;
-    break;
-
-  case movementDirections::bwtr :
     VLneu = 0;
     VRneu = 100;
     HLneu = 0;
     HRneu = 100;
+    break;
+
+  case movementDirections::bwtr :
+    VLneu = 100;
+    VRneu = 0;
+    HLneu = 100;
+    HRneu = 0;
     break;
 
   default:
@@ -674,12 +699,14 @@ if (automodeActive) { // when automode is active
   anteilMotor[2] = HL;
   anteilMotor[3] = HR;
 
+  int TMP_SPEED = automodeActive ? MAXSPEED_AUTO : MAXSPEED_MAN; // change speed 
+
   for(int i = 0; i <= 3; i++) {
     if(abs(anteilMotor[i]) >= 100) { // no override at the moment
-      driveValue[i] = MAXSPEED; //Vorher:10
+        driveValue[i] = TMP_SPEED;
                                                                        
     } else if(abs(anteilMotor[i]) > 13) {
-      driveValue[i] = (100 / abs(anteilMotor[i])) * TIMEFACTOR - TIMEFACTOR + MAXSPEED;
+      driveValue[i] = (100 / abs(anteilMotor[i])) * TIMEFACTOR - TIMEFACTOR + TMP_SPEED;
 
       if(driveValue[i] > UPPERLIMITDELAY) {
         driveValue[i] = UPPERLIMITDELAY;
@@ -718,8 +745,7 @@ void communicationArduinoNano() {
   }
 
   #if (DEBUG_SPI_RECIEVE)
-    Serial.print("Empfangenes Status-Byte vom Nano: ");
-    Serial.println(movementStatus, BIN);
+    Serial.println(sendToMega.readBit(movementIsSafe));
   #endif
 }
 
@@ -821,24 +847,30 @@ void recvWithEndMarker() {
   } else {
     receivedChars[ndx] = '\0'; // terminate the string
     ndx = 0;
-    if (stringIsWhitespaceOrEmpty(receivedChars)) return;
+    if (stringIsWhitespaceOrEmpty(receivedChars)) {
+      
+      return;
+    }
 
   #if (DEBUG_DATA_RASPI)
     Serial.println(receivedChars);
   #endif
 
   intFromRaspi = atoi(receivedChars);
-
-  movementCalculatedRaspi = intToMovementDirection(intFromRaspi);
+  movementCalculatedRaspi = static_cast<movementDirections>(intFromRaspi);
   intFromRaspi = 0; // safety
     //pullData_RASPI(receivedChars);
   }
  }
-
- Serial2.write(automodeActive);
 }
 
-
+void sendAutomodeActive() {
+  static bool lastAutomodeActive = false; 
+   if (automodeActive != lastAutomodeActive) {
+    Serial2.write(automodeActive ? "1" : "0");
+   }
+   lastAutomodeActive = automodeActive;
+}
 
 void loop() {
   //DB Erweiterung Greifeinheit Kommandos Senden
@@ -900,8 +932,8 @@ void loop() {
     datenstring = "";
   }
 
-   
-   processData(); // load data from gamepade
+   recvWithEndMarker();
+   processData(); // load data from gamepad
    Greifeinheit(); // do stuff with the gripping unit
    movementCalculatedGamepad = calcMovementFromAnalogVals(stellwert[0], stellwert[2], stellwert[3]); // calculate the movement direction from stick positions
    calcMecanumProportion(movementCalculatedGamepad, movementCalculatedRaspi); // calculate the proportion of the Mecanum wheels for the given movement direction
@@ -918,7 +950,7 @@ void loop() {
   } 
  
   
-  recvWithEndMarker();
+  // recvWithEndMarker();
 
   // if(currentMillis - lastMillisRaspi > 100) {
   //   nachrichtZusammensetzen();
@@ -945,11 +977,5 @@ void loop() {
 
     lastMillis50MS = currentMillis;
   }
-
+ sendAutomodeActive();
 }
-
-
-
-
-
-
