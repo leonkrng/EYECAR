@@ -14,7 +14,7 @@ def align_to_marker(frame, current_marker):
     # A <10% difference between the lengt of the sides is considered straight
     side_diff = current_marker.side_TL_BL / current_marker.side_TR_BR
 
-    # If the marker the diagonales are 15% of the widht the marker is considered close enough
+    # If the marker the diagonales are 2% of the widht the marker is considered close enough
     max_size = 0.2 * width 
 
     if current_marker.center_x < border_left:

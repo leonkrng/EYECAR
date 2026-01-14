@@ -22,36 +22,31 @@ class CameraNode(Node):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.fallback_image_path = os.path.join(base_dir, "no_signal.jpg")
 
-        self.publish_fallback()
-        self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
+        try:
+            self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        except Exception as e:
+            self.get_logger().error(f"Could not start videocapture because of error: {e}")
 
         self.timer = self.create_timer(0.02, self.publish_frame_raw)
 
     def publish_frame_raw(self):
-        if self.cap.isOpened():
+        try:
 
-            ret, frame = self.cap.read()
+            if self.cap.isOpened():
 
-            if not ret:
-                self.get_logger().error("Failed to read frame.")
+                ret, frame = self.cap.read()
+
+                if not ret:
+                    self.get_logger().error("Failed to read frame.")
+                    return
+            else:
+                self.get_logger().error("Camera stream is not opened.")
                 return
-        else:
-            self.get_logger().error("Camera stream is not opened.")
-            return
 
-        #cv2.imshow("Debug Window", frame)
-        msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
-        self.frame_raw_publisher.publish(msg)
+            #cv2.imshow("Debug Window", frame)
+            msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
+            self.frame_raw_publisher.publish(msg)
 
-    def publish_fallback(self):
-        frame = cv2.imread(self.fallback_image_path)
-
-        if frame is None:
-            self.get_logger().error("Fallback image 'no_signal.jpg' not found.")
-            return
-
-        msg = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
-        self.frame_raw_publisher.publish(msg)
-
+        except Exception as e:
+            self.get_logger().error(f"Could not publish frame because of error: {e}")
