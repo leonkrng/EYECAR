@@ -7,6 +7,7 @@
 #include "MotorByte.h"
 #include "CtrlByte.h"
 #include "Buttons.h"
+#include <ctype.h>
 
 #define NETWORKID     119   // Must be the same for all nodes (0 to 255)
 #define MYNODEID      213   // My node ID (0 to 255)
@@ -22,16 +23,21 @@ RFM69 radio(25,4);   //SS-Pin, Interrupt-Pin
 #define debugLevel 0 // standard debug: 1; debug of movement directions
 #define override 1 // when set to a value higher than 0, an override is used, otherwise the sticks are interpreted binary (not implemented)
 #define DEBUG_GREIFER 0
+#define DEBUG_AUTOMODE 0
 #define DEBUG_SPI_RECIEVE 0
-#define automatic 0 // 0: static use of gamepad for movement control, 1: static use of raspi for movement control,
-                    // 2: Mode can be switched with gamepad (not implemented)
+#define DEBUG_LED 0
+#define DEBUG_CONTROLDATA 0
+#define DEBUG_SEND_STATUS 0
+#define DEBUG_MOVEMENT_DIRECTION 0
+#define DEBUG_TMPDIRECTION 1 
+#define DEBUG_DATA_RASPI 0
 
 //DB Für Greifeinheit
 char fromSerialMon = ' ';
 CtrlByte sendToMega; // Byte for controling gripper and linear unit
-bool GreifeinheitHoch, GreifeinheitRunter, GreiferAuf, GreiferZu;
-/*Buttons buttonHoch(&GreifeinheitHoch);
-Buttons buttonRunter(&GreifeinheitRunter);
+bool GreifeinheitGrippingPos, GreifeinheitTransportPos, GreiferAuf, GreiferZu;
+/*Buttons buttonHoch(&GreifeinheitGrippingPos);
+Buttons buttonRunter(&GreifeinheitTransportPos);
 Buttons buttonAuf(&GreiferAuf);
 Buttons buttonZu(&GreiferZu);*/
 
@@ -44,7 +50,14 @@ bool parityBerechnet, parityReceived;
 
 bool Notaus_OK;
 
-int controldata[16];
+int controldata[16]; // data from gamepad
+bool automodeOnLastCylce; // rembering the last state of the gamepadswicth for starting the automode
+bool automodeOffLastCylce; // rembering the last state of the gamepadswicth for stopping the automode
+bool automodeActive; // name says it all
+bool ledActiveLastCycle; // remebering last state of the led 
+
+int intFromRaspi; // integer Value, convertet from the ASCII which is send from raspi
+
 int raspiData[10];
 float driveValue[4];
 
@@ -332,28 +345,23 @@ void arucoAutomatik() {
 }
 
 void Greifeinheit(){
-/*GreifeinheitHoch = controldata[8];
- GreifeinheitRunter = controldata[10];
-
- GreiferAuf = controldata[9];
- GreiferZu = controldata[11];*/
  // kind of stupid solution, I know...
-  if (controldata[8]) { // move up
+  if (GreifeinheitTransportPos) { // move up
     sendToMega.setBit(moveUp);
   } else {
     sendToMega.clearBit(moveUp);
   }
-  if (controldata[10]) { // move down
+  if (GreifeinheitGrippingPos) { // move down
     sendToMega.setBit(moveDown);
   } else {
     sendToMega.clearBit(moveDown);
   }
-  if (controldata[9]) { // open
+  if (GreiferZu) { // close gripper
     sendToMega.setBit(closeGripper);
   } else {
     sendToMega.clearBit(closeGripper);
   }
-  if (controldata[11]) { // close
+  if (GreiferAuf) { // open gripper
     sendToMega.setBit(openGripper);
   } else {
     sendToMega.clearBit(openGripper);
@@ -368,20 +376,65 @@ void processData() {
    //controldata[2] Joystik 2 --> Fahren Links Rechts
    //controldata[3] Joystik 2 --> Fahren Vor Zurück
    //controldata[4] Funktionstaste 1 --> Licht An/Aus
-   //controldata[5] Funktionstaste 2 --> Autonome Aruko NAvigation AN/AUS
-   //controldata[6] Funktionstaste 3 --> not in use
-   //controldata[7] Funktionstaste 4 --> Ohne Funktion (Vielleicht Auto GReifen AN/AUS)
+   //controldata[5] Funktionstaste 2 --> enable automaticmode
+   //controldata[6] Funktionstaste 3 --> disable automatic mode
+   //controldata[7] Funktionstaste 4 --> no function 
    //controldata[8]-[11]  Rücktasten? --> Greifeinheit
 
 
    //zuerst werden die Sonderfunktionen abgefragt, da sie evtl eingreifen müssen
- beleuchtungAktiv = controldata[4];
+  if (ledActiveLastCycle == 0 && controldata[4] == 1) { // rising flank on led button
+    beleuchtungAktiv = !beleuchtungAktiv;
+  }
+  ledActiveLastCycle = controldata[4];
 
- GreifeinheitHoch = controldata[8];
- GreifeinheitRunter = controldata[10];
+  if (movementCalculatedRaspi == movementDirections::ledon) { // raspi wants led on
+    beleuchtungAktiv = true;  
+  }
+  if (movementCalculatedRaspi == movementDirections::ledoff) { // rapsi wants led off
+    beleuchtungAktiv = false;
+  }
 
- GreiferAuf = controldata[9];
- GreiferZu = controldata[11];
+ #if (DEBUG_LED)
+  Serial.print("LED: ");
+  Serial.println(beleuchtungAktiv);
+ #endif
+ #if (DEBUG_CONTROLDATA)
+  Serial.print(controldata[4]);
+  Serial.print(controldata[5]);
+  Serial.print(controldata[6]);
+  Serial.println(controldata[7]);
+ #endif
+
+  if (!(controldata[5] == 1 && controldata[6] == 1)) { // dont change anything, if both buttons are pressed
+    if (automodeOnLastCylce == 0 && controldata[5] == 1) { // automode on button was not pressed in last cycle and is pressed now (rising flank)
+      automodeActive = true; // enable auto mode
+    }
+    if (automodeOffLastCylce == 0 && controldata[6] == 1) {
+      automodeActive = false; // disable auto mode
+    }
+  }
+  automodeOnLastCylce = controldata[5]; // remember last states
+  automodeOffLastCylce = controldata[6];
+  #if (DEBUG_AUTOMODE == 1)
+    Serial.print("Automode: ");
+    Serial.println(automodeActive);
+  #endif
+
+if (automodeActive) {
+  GreifeinheitGrippingPos = (movementCalculatedRaspi == movementDirections::lugp);
+  GreifeinheitTransportPos = (movementCalculatedRaspi == movementDirections::lutp);
+
+  GreiferAuf = (movementCalculatedRaspi == movementDirections::grop);
+  GreiferZu = (movementCalculatedRaspi == movementDirections::grcl);
+} else {
+  GreifeinheitGrippingPos = controldata[8];
+  GreifeinheitTransportPos = controldata[10];
+
+  GreiferAuf = controldata[9];
+  GreiferZu = controldata[11];
+}
+ 
 
  #if DEBUG_GREIFER
     Serial.print(controldata[8]);
@@ -431,7 +484,7 @@ movementDirections calcMovementFromAnalogVals (float turning, float rightLeft, f
 
   if (abs(turning) < minStickValRel and abs(rightLeft) < minStickValRel and abs(fowardBackward) >= minStickValRel) {
     // just foward or backward
-    movementCalculatedOut = fowardBackward >= 0 ? movementDirections::fw : movementDirections::bw;
+    movementCalculatedOut = fowardBackward <= 0 ? movementDirections::fw : movementDirections::bw;
 
   } else if (abs(turning) < minStickValRel and abs(rightLeft) >= minStickValRel and abs(fowardBackward) < minStickValRel) {
     // just right or left
@@ -445,14 +498,14 @@ movementDirections calcMovementFromAnalogVals (float turning, float rightLeft, f
             or (abs(turning) >= minStickValRel and abs(rightLeft) >= minStickValRel and abs(fowardBackward) >= minStickValRel)) {
     // diagonal movement or an input in all movement types
     // -> turning will be ignored
-    if (fowardBackward >= 0) { //foward 
+    if (fowardBackward <= 0) { //foward 
       movementCalculatedOut = rightLeft >= 0 ? movementDirections::fwr : movementDirections::fwl;
     } else { // backward
       movementCalculatedOut = rightLeft >= 0 ? movementDirections::bwr : movementDirections::bwl;
     }
   } else if (abs(turning) >= minStickValRel and abs(rightLeft) < minStickValRel and abs(fowardBackward) >= minStickValRel) {
     // foward/backward with turning 
-    if (fowardBackward >= 0) { //foward 
+    if (fowardBackward <= 0) { //foward 
       movementCalculatedOut = turning >= 0 ? movementDirections::fwtr : movementDirections::fwtl;
     } else { // backward
       movementCalculatedOut = turning >= 0 ? movementDirections::bwtr : movementDirections::bwtl;
@@ -461,7 +514,7 @@ movementDirections calcMovementFromAnalogVals (float turning, float rightLeft, f
       movementCalculatedOut = movementDirections::stop;
   }
 
-  #if debugLevel == -1
+  #if DEBUG_MOVEMENT_DIRECTION 
     Serial.print("turning / left/right / foward/backward / movement direction: ");
     Serial.print(turning); Serial.print(" ");
     Serial.print(rightLeft); Serial.print(" ");
@@ -474,12 +527,19 @@ movementDirections calcMovementFromAnalogVals (float turning, float rightLeft, f
 
 
 void calcMecanumProportion(movementDirections movementCalculatedGamepad, movementDirections movementCalculatedRaspi) {
-#if automatic == 0
-  switch (movementCalculatedGamepad)
-#elif automatic == 1
-  switch (movementCalculatedRaspi)
+movementDirections tmpDirections; //
+
+if (automodeActive) { // when automode is active
+  tmpDirections = movementCalculatedRaspi; // use input from raspi
+} else { // automode is not active
+  tmpDirections = movementCalculatedGamepad; // use input from gamepad
+}
+
+#if DEBUG_TMPDIRECTION
+  Serial.println(static_cast<int>(tmpDirections));
 #endif
-  {
+
+ switch (tmpDirections) { // do things with the input
   case movementDirections::stop :
     VLneu = 0;
     VRneu = 0;
@@ -488,17 +548,17 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
 
   case movementDirections::fw :
-    VLneu = 100;
-    VRneu = 100;
-    HLneu = 100;
-    HRneu = 100;
-    break;
-
-  case movementDirections::bw :
     VLneu = -100;
     VRneu = -100;
     HLneu = -100;
     HRneu = -100;
+    break;
+
+  case movementDirections::bw :
+    VLneu = 100;
+    VRneu = 100;
+    HLneu = 100;
+    HRneu = 100;
     break;
   
   case movementDirections::l :
@@ -516,31 +576,31 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
   
   case movementDirections::fwl :
-    VLneu = 0; 
-    VRneu = 100;
-    HLneu = 100;
-    HRneu = 0;
-    break;
-
-  case movementDirections::fwr :
-    VLneu = 100;
-    VRneu = 0;
-    HLneu = 0;
-    HRneu = 100;
-    break;
-
-  case movementDirections::bwl :
-    VLneu = -100;
+    VLneu = -100; 
     VRneu = 0;
     HLneu = 0;
     HRneu = -100;
     break;
 
-  case movementDirections::bwr :
+  case movementDirections::fwr :
     VLneu = 0;
     VRneu = -100;
     HLneu = -100;
     HRneu = 0;
+    break;
+
+  case movementDirections::bwl :
+    VLneu = 0;
+    VRneu = 100;
+    HLneu = 100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::bwr :
+    VLneu = 100;
+    VRneu = 0;
+    HLneu = 0;
+    HRneu = 100;
     break;
 
   case movementDirections::tl :
@@ -558,31 +618,31 @@ void calcMecanumProportion(movementDirections movementCalculatedGamepad, movemen
     break;
 
   case movementDirections::fwtl :
-    VLneu = 100;
-    VRneu = 0;
-    HLneu = 100;
-    HRneu = 0;
-    break;
-
-  case movementDirections::fwtr :
-    VLneu = 0;
-    VRneu = 100;
-    HLneu = 0;
-    HRneu = 100;
-    break;
-
-  case movementDirections::bwtl :
     VLneu = -100;
     VRneu = 0;
     HLneu = -100;
     HRneu = 0;
     break;
 
-  case movementDirections::bwtr :
+  case movementDirections::fwtr :
     VLneu = 0;
     VRneu = -100;
     HLneu = 0;
     HRneu = -100;
+    break;
+
+  case movementDirections::bwtl :
+    VLneu = 100;
+    VRneu = 0;
+    HLneu = 100;
+    HRneu = 0;
+    break;
+
+  case movementDirections::bwtr :
+    VLneu = 0;
+    VRneu = 100;
+    HLneu = 0;
+    HRneu = 100;
     break;
 
   default:
@@ -637,6 +697,10 @@ void communicationArduinoNano() {
   // Zu sendender Wert, z.B. der Zustand für die Nano-LED:
   byte sendStatus = beleuchtungAktiv ? 1 : 0;
 
+  #if (DEBUG_SEND_STATUS)
+  Serial.println(sendStatus);
+  #endif
+
   digitalWrite(DO_SS_ArduinoNano, LOW);   // Chipselect aktivieren
   SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));  // 1MHz reicht meist sicher
 
@@ -647,7 +711,6 @@ void communicationArduinoNano() {
   digitalWrite(DO_SS_ArduinoNano, HIGH);  // Chipselect deaktivieren
 
   // Nun ist movementStatus das vom Nano transferierte Status-Byte (z.B. Bit0 = movementIsSafe)
-  // Beispiel-Verarbeitung im ESP/UNO:
   if (movementStatus & 0x01) {
     sendToMega.setBit(movementIsSafe);
   } else {
@@ -726,6 +789,22 @@ void nachrichtZusammensetzen() {
     
 }
 
+movementDirections intToMovementDirection(int val) {
+    if(val >= 0 && val <= 14) {
+        return static_cast<movementDirections>(val);
+    } else {
+        return movementDirections::stop; // Standardwert, falls außerhalb
+    }
+}
+
+bool stringIsWhitespaceOrEmpty(const char *str) {
+  while (*str) {
+    if (!isspace(*str)) return false;
+    str++;
+  }
+  return true;
+}
+
 void recvWithEndMarker() {
  static byte ndx = 0;
  char endMarker = '\n';
@@ -733,7 +812,6 @@ void recvWithEndMarker() {
  
  while (Serial2.available() > 0) {
   rc = Serial2.read();
-
   if (rc != endMarker) {
     receivedChars[ndx] = rc;
     ndx++;
@@ -743,19 +821,26 @@ void recvWithEndMarker() {
   } else {
     receivedChars[ndx] = '\0'; // terminate the string
     ndx = 0;
-    pullData_RASPI(receivedChars);
+    if (stringIsWhitespaceOrEmpty(receivedChars)) return;
+
+  #if (DEBUG_DATA_RASPI)
+    Serial.println(receivedChars);
+  #endif
+
+  intFromRaspi = atoi(receivedChars);
+
+  movementCalculatedRaspi = intToMovementDirection(intFromRaspi);
+  intFromRaspi = 0; // safety
+    //pullData_RASPI(receivedChars);
   }
  }
+
+ Serial2.write(automodeActive);
 }
 
 
 
 void loop() {
-  /*buttonHoch.update();
-  buttonZu.update();
-  buttonRunter.update();
-  buttonAuf.update();*/
-
   //DB Erweiterung Greifeinheit Kommandos Senden
   Wire.beginTransmission(20); // transmit to device #4
   uint8_t tmpSendToMega = sendToMega.getByte();
@@ -832,13 +917,14 @@ void loop() {
     recordPlaybackCounter = 0;
   } 
  
+  
   recvWithEndMarker();
 
-  if(currentMillis - lastMillisRaspi > 100) {
-    nachrichtZusammensetzen();
-    Serial2.println(Nachricht);
-    lastMillisRaspi = currentMillis;
-  }
+  // if(currentMillis - lastMillisRaspi > 100) {
+  //   nachrichtZusammensetzen();
+  //   Serial2.println(Nachricht);
+  //   lastMillisRaspi = currentMillis;
+  // }
 
   if(currentMillis - lastMillis50MS > 50) {
     if(!receiverTimeout) {

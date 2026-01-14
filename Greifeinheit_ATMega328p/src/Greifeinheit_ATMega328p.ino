@@ -1,10 +1,22 @@
 #include <Wire.h>
 #include <SpeedyStepper.h>
-#include <Bounce2.h>
+//#include <Bounce2.h>
 #include "MotorByte.h"
 #include "CtrlByte.h"
 
-#define debug 4
+#define debug 6
+
+/***********************************************************/
+
+/* set the two positions here */
+/* measure the distance from the limit switch to the wanted gripping pos */
+/* the const must be negativ because off movement direction */
+/* distance = 200 -> grippingPos = -200 */
+
+const float grippingPos = -150;
+const float transportPos = grippingPos - 20; // position while transporting is a little higher
+
+/***********************************************************/
 
 /* Steppers */
 SpeedyStepper stepperGripper;
@@ -163,7 +175,7 @@ void setup() {
 
   /* homing */
   homeStepper(stepperGripper, limitSwitchGripper, 5, 0.1, 30, -5);
-  homeStepper(stepperHeight, limitSwitchHeight, 20, 0.1, 1000, -5);
+  homeStepper(stepperHeight, limitSwitchHeight, speedMillisPerSecondHeight, 0.1, 5000, -5);
 
   /* stepper configuration for loop */
   Serial.println("setup for loop");
@@ -176,7 +188,13 @@ void setup() {
   stepperHeight.setSpeedInMillimetersPerSecond(speedMillisPerSecondHeight); // set speed
   stepperHeight.setAccelerationInMillimetersPerSecondPerSecond(accMillisPerSecondPerSecondHeight); // set acceleration
 
-  /* Pressure Sensor */
+  // move to gripping Pos after referencing
+  stepperHeight.setupMoveInMillimeters(grippingPos); // setup movement
+  while (!stepperHeight.motionComplete()) { // process movement till its finished
+    stepperHeight.processMovement(); // process movement
+  }
+  
+
   processMovementGripper = true;
 
   Serial.println("Setup done");
@@ -231,12 +249,12 @@ void loop() {
   
     /* height */
     if (cmd.readBit(moveUp) and not (cmd.readBit(moveDown))) { 
-      stepperHeight.setupRelativeMoveInMillimeters(1000); // change setpos to 1000
+      stepperHeight.setupMoveInMillimeters(grippingPos); // setup movement to transportPos
       #if (debug == 4)
         Serial.print("up ");
       #endif
     } else if (cmd.readBit(moveDown) and not (cmd.readBit(moveUp))) {
-      stepperHeight.setupRelativeMoveInMillimeters(-1000); // change setpos to -1000
+      stepperHeight.setupMoveInMillimeters(transportPos); // setup movement to grippingPos
       #if (debug == 4)
         Serial.print("down ");
       #endif
@@ -249,12 +267,12 @@ void loop() {
 
     /* gripper */
     if (cmd.readBit(closeGripper) and not (cmd.readBit(openGripper))) { 
-      stepperGripper.setupMoveInMillimeters(softLimitHighGripper);
+      stepperGripper.setupRelativeMoveInMillimeters(-100); // move to are very distant point -> movement is stopped by the pressure sensor
       #if (debug == 4)
         Serial.println("close");
       #endif
     } else if (cmd.readBit(openGripper) and not cmd.readBit(closeGripper)) {
-      stepperGripper.setupMoveInMillimeters(softLimitLowGripper); //
+      stepperGripper.setupRelativeMoveInMillimeters(100); // // move to are very distant point -> movement is stopped by the limit switch
       #if (debug == 4)
         Serial.println("open");
       #endif
@@ -272,7 +290,7 @@ void loop() {
   /* do the given Movements */
   stepperHeight.processMovement();
 
-  if ((cmd.readBit(movementIsSafe) and cmd.readBit(closeGripper)) or cmd.readBit(openGripper)) {
+  if ((cmd.readBit(movementIsSafe) and cmd.readBit(closeGripper)) or (cmd.readBit(openGripper) and digitalRead(limitSwitchGripper)== LOW)) {
     stepperGripper.processMovement();
   }  
 }
