@@ -80,28 +80,28 @@ class LidarNode(Node):
         coll_msg.data = False
 
         # Check collision for each EYECAR-side
-        if min(front_ranges) <= self.FRONT_COLL:
+        if (len(front_ranges) != 0) and min(front_ranges) <= self.FRONT_COLL:
             coll_msg.data = True
             self.collision_publisher_front.publish(coll_msg)
         else:
             coll_msg.data = False
             self.collision_publisher_front.publish(coll_msg)
 
-        if min(back_ranges) <= self.BACK_COLL:
+        if len(back_ranges) != 0 and min(back_ranges) <= self.BACK_COLL:
             coll_msg.data = True
             self.collision_publisher_back.publish(coll_msg)
         else:
             coll_msg.data = False
             self.collision_publisher_back.publish(coll_msg)
 
-        if min(left_ranges) <= self.SIDE_COLL:
+        if (len(left_ranges) != 0) and min(left_ranges) <= self.SIDE_COLL:
             coll_msg.data = True
             self.collision_publisher_left.publish(coll_msg)
         else:
             coll_msg.data = False
             self.collision_publisher_left.publish(coll_msg)
 
-        if min(right_ranges) <= self.SIDE_COLL:
+        if (len(right_ranges) != 0) and min(right_ranges) <= self.SIDE_COLL:
             coll_msg.data = True
             self.collision_publisher_right.publish(coll_msg)
         else:
@@ -112,7 +112,10 @@ class LidarNode(Node):
         workstation_ranges = self.get_valid_ranges(scan.ranges, self.WORKSTATION_START, self.WORKSTATION_END, scan.angle_min, scan.angle_increment)
 
         workstation_msg = Float32()
-        workstation_msg.data = min(workstation_ranges)
+
+        if len(workstation_ranges) != 0:
+            workstation_msg.data = min(workstation_ranges)
+            self.workstation_distance_publisher.publish(workstation_msg)
 
     def get_valid_ranges(self, scan_ranges, start, end, angle_min, angle_increment):
         i_begin = math.ceil((start - angle_min) / angle_increment)
