@@ -41,6 +41,7 @@ def align_to_marker(frame, current_marker):
     if current_marker.diag_TL_BR > max_size and current_marker.diag_TR_BL > max_size:
         # Marker is close enough and aligend
         is_aligned = True
+        print("The EYECAR is now aligned to the marker.")
         return MovementEnum.STOP, is_aligned
 
     # Fallback 

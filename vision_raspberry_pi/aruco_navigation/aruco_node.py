@@ -17,6 +17,8 @@ from aruco_navigation.movement_base import MovementBase
 from aruco_navigation.movement_pick_and_place import MovementPickAndPlace
 import time
 
+from vision_raspberry_pi.aruco_navigation import marker_model
+
 class ArucoNode(Node):
     def __init__(self):
         super().__init__('aruco_node', allow_undeclared_parameters=True)
@@ -75,11 +77,12 @@ class ArucoNode(Node):
 
         self.bridge = CvBridge()
         self.current_marker = None
-        self.last_marker = None
+        self.last_marker = None 
         self.aligned_to_marker = False
         self.movement_routine = MovementPickAndPlace()
 
         self.auto_mode = False
+        self.command = None
 
 
         
@@ -89,9 +92,9 @@ class ArucoNode(Node):
 
         (corners, marker_id) = read_marker(frame)
 
-        command = MovementEnum.STOP
 
         if marker_id is not None and corners.any():
+            # Marker detected
             draw_marker_border(frame, corners, marker_id)
         
             self.current_marker = MarkerModel(corners, marker_id)
@@ -100,46 +103,51 @@ class ArucoNode(Node):
                 # First marker
                 self.last_marker = self.current_marker
 
-        if self.current_marker is not None and self.last_marker is not None:
 
-            if self.current_marker.marker_id != self.last_marker.marker_id and self.movement_routine.current_sub_step == self.movement_routine.SUB_ROUTINE_DONE:
-                # New Marker
+            if (self.current_marker.marker_id != self.last_marker.marker_id) and (self.movement_routine.current_sub_step == self.movement_routine.SUB_ROUTINE_DONE) or (self.auto_mode == False):
+                # New Marker: reset step and alignment
                 self.movement_routine.current_sub_step = 0
                 self.aligned_to_marker = False
 
 
+            if self.aligned_to_marker:
+                pass
+                # Alignment is completed and the workstation-routine should run
+                self.command = self.movement_routine.movement_routine(self.current_marker.marker_id)
+
+            else:
+                pass
+                # Alignment is not completed and the alignment-routine should run
+                self.command, self.aligned_to_marker = align_to_marker(frame, self.current_marker)
+
+                collision_detected = self.collision_in_direction(self.command)
+
+                if collision_detected:
+                    self.command = MovementEnum.STOP
+
+            # Set current marker ad last marker for the next cycle
+            self.last_marker = self.current_marker
+        else:
             if self.aligned_to_marker == False:
-                command, self.aligned_to_marker = align_to_marker(frame, self.current_marker)
+                # Marker was lost during the alginment
+                self.command = MovementEnum.STOP
+
+        self. publish_data(self.command, frame)
 
 
-            if self.aligned_to_marker and (self.movement_routine.current_sub_step != self.movement_routine.SUB_ROUTINE_DONE):
-                # Gets the command from the marker-routines
-                command = self.movement_routine.movement_routine(self.current_marker.marker_id)
-
-        collision_detected = self.collision_in_direction(command)
-
-        if (collision_detected and self.aligned_to_marker == False) or command is None:
-
-            command = MovementEnum.STOP
-
-
-        if self.auto_mode == False:
-            self.movement_routine.current_sub_step = 0
-            self.aligned_to_marker = False
-        self. publish_data(command, frame)
-
-
+    # Publish command and processed frame
     def publish_data(self, command, frame):
-        # Publishing command and processed frame
-        msg = String()
-        msg.data = str(command.value)
 
-        self.command_publisher.publish(msg)
+        if command is not None:
+            msg_command = String()
+            msg_command.data = str(command.value)
 
-        msg_frame = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
-        self.frame_processed_publisher.publish(msg_frame)
+            self.command_publisher.publish(msg)
 
-        self.last_marker = self.current_marker
+        if frame is not None:
+            msg_frame = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
+            self.frame_processed_publisher.publish(msg_frame)
+
 
 
 
