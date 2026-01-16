@@ -9,7 +9,7 @@
 #include "PressureSensor.h"
 
 #define DEBUG_MESSAGE 1
-#define PRESSURESENSOR_ACTIVE 1
+#define PRESSURESENSOR_ACTIVE 1 // must be 1 to be active -> if zero, the gripper will not close (movementSafe() will return false)
 
 volatile boolean received;
 volatile byte SPIRECEIVED,SPISEND;
@@ -85,6 +85,7 @@ void loop(){
   
   Serial.println(movementStatus);
 }
+
 
 
 
