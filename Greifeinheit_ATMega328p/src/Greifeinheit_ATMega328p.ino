@@ -4,7 +4,7 @@
 #include "MotorByte.h"
 #include "CtrlByte.h"
 
-#define debug 6
+#define debug 4
 #define DEBUG_STEPPERGRIPPER_SAFE 0
 
 /***********************************************************/
@@ -14,7 +14,7 @@
 /* the const must be negativ because off movement direction */
 /* distance = 200 -> grippingPos = -200 */
 
-const float grippingPos = -150;
+const float grippingPos = -330;
 const float transportPos = grippingPos - 20; // position while transporting is a little higher
 
 /***********************************************************/
@@ -66,6 +66,7 @@ const byte doutPinPressureSensor = 3;
 
 
 CtrlByte cmd, lastCmd;
+bool lastCycleOpen, lastCycleClose, lastCycleUp, lastCycleDown;
 int ref = 0;
 
 
@@ -206,8 +207,11 @@ void setup() {
 //    1. setupStop() bei jedem aufruf eine Bremsung durchführt -> verschiebung der Zielpos auf ende der Bramsrampe von aktuellem Punkt
 //    2. setupRelativMoveIn...() bei jedem Aufruf eine neue Zielposition festlegt
 bool shouldIDoThisCmd(CtrlByte cmdNo) {
-  if (cmdNo.getByte() != lastCmd.getByte()) { // wenn  die letzte und aktuelle cmdNo nicht gleich sind
-    lastCmd.setByte(cmdNo.getByte()); // gleich setzten
+  if (cmdNo.readBit(moveUp) != lastCycleUp or cmdNo.readBit(moveDown) != lastCycleDown or cmdNo.readBit(closeGripper) != lastCycleClose or cmdNo.readBit(openGripper) != lastCycleOpen) { // wenn  die letzte und aktuelle cmdNo nicht gleich sind
+    lastCycleUp = cmdNo.readBit(moveUp); // gleich setzten
+    lastCycleDown = cmdNo.readBit(moveDown);
+    lastCycleClose = cmdNo.readBit(closeGripper);
+    lastCycleOpen = cmdNo.readBit(openGripper);
     return true; // true zurückgeben
   }
 
@@ -252,12 +256,12 @@ void loop() {
   
     /* height */
     if (cmd.readBit(moveUp) and not (cmd.readBit(moveDown))) { 
-      stepperHeight.setupMoveInMillimeters(grippingPos); // setup movement to transportPos
+      stepperHeight.setupMoveInMillimeters(transportPos); // setup movement to transportPos
       #if (debug == 4)
         Serial.print("up ");
       #endif
     } else if (cmd.readBit(moveDown) and not (cmd.readBit(moveUp))) {
-      stepperHeight.setupMoveInMillimeters(transportPos); // setup movement to grippingPos
+      stepperHeight.setupMoveInMillimeters(grippingPos); // setup movement to grippingPos
       #if (debug == 4)
         Serial.print("down ");
       #endif
@@ -270,12 +274,12 @@ void loop() {
 
     /* gripper */
     if (cmd.readBit(closeGripper) and not (cmd.readBit(openGripper))) { 
-      stepperGripper.setupRelativeMoveInMillimeters(-100); // move to are very distant point -> movement is stopped by the pressure sensor
+      stepperGripper.setupMoveInMillimeters(-1000); // move to are very distant point -> movement is stopped by the pressure sensor
       #if (debug == 4)
         Serial.println("close");
       #endif
     } else if (cmd.readBit(openGripper) and not (cmd.readBit(closeGripper))) {
-      stepperGripper.setupRelativeMoveInMillimeters(100); // // move to are very distant point -> movement is stopped by the limit switch
+      stepperGripper.setupMoveInMillimeters(1000); // // move to are very distant point -> movement is stopped by the limit switch
       #if (debug == 4)
         Serial.println("open");
       #endif

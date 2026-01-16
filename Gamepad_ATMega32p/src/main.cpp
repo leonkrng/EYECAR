@@ -89,7 +89,7 @@ void setupRFM69() {
 
 void setup() {
   #if DEBUG_SERIAL
-    Serial.begin(9600);
+    Serial.begin(115200);
     Serial.println("ready");
   #endif
   pinMode(statusLED, OUTPUT);

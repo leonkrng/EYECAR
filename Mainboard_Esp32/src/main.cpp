@@ -31,7 +31,8 @@ RFM69 radio(25,4);   //SS-Pin, Interrupt-Pin
 #define DEBUG_MOVEMENT_DIRECTION 0
 #define DEBUG_TMPDIRECTION 0
 #define DEBUG_DATA_RASPI 0
-#define DEBUG_RASPI_MOVE 1
+#define DEBUG_RASPI_MOVE 0
+#define DEBUG_UNO_TRANSMISSION 0
 
 //DB Für Greifeinheit
 char fromSerialMon = ' ';
@@ -434,9 +435,6 @@ if (automodeActive) {
     GreifeinheitTransportPos = false;
   }
 
-  // GreifeinheitGrippingPos = (movementCalculatedRaspi == movementDirections::lugp) ? true : false;
-  // GreifeinheitTransportPos = (movementCalculatedRaspi == movementDirections::lutp) ? true: false;
-
   if (movementCalculatedRaspi == movementDirections::grop) {
     GreiferAuf = true;
   } else {
@@ -448,12 +446,9 @@ if (automodeActive) {
     GreiferZu = false;
   }
 
-  // GreiferAuf = (movementCalculatedRaspi == movementDirections::grop) ? true : false;
-  // GreiferZu = (movementCalculatedRaspi == movementDirections::grcl) ? true : false;
-
 } else {
-  GreifeinheitGrippingPos = controldata[8];
-  GreifeinheitTransportPos = controldata[10];
+  GreifeinheitGrippingPos = controldata[10];
+  GreifeinheitTransportPos = controldata[8];
 
   GreiferAuf = controldata[9];
   GreiferZu = controldata[11];
@@ -852,14 +847,21 @@ void recvWithEndMarker() {
       return;
     }
 
-  #if (DEBUG_DATA_RASPI)
-    Serial.println(receivedChars);
-  #endif
+  
 
   intFromRaspi = atoi(receivedChars);
   movementCalculatedRaspi = static_cast<movementDirections>(intFromRaspi);
-  intFromRaspi = 0; // safety
+  
     //pullData_RASPI(receivedChars);
+
+  #if (DEBUG_DATA_RASPI)
+    Serial.print(receivedChars);
+    Serial.print(" ");
+    Serial.print(intFromRaspi);
+    Serial.print(" ");
+    Serial.println(static_cast<int>(movementCalculatedRaspi));
+  #endif
+  intFromRaspi = 0; // safety
   }
  }
 }
@@ -872,10 +874,22 @@ void sendAutomodeActive() {
    lastAutomodeActive = automodeActive;
 }
 
+byte tmpSendToMega;
+
 void loop() {
   //DB Erweiterung Greifeinheit Kommandos Senden
+  tmpSendToMega = sendToMega.getByte();
+  #if DEBUG_UNO_TRANSMISSION
+    if (automodeActive) {
+      Serial.print(sendToMega.getByte());
+      Serial.print(" ");
+      Serial.println(tmpSendToMega);
+    }
+  #endif
+  #if !DEBUG_UNO_TRANSMISSION
+    delay(1);
+  #endif
   Wire.beginTransmission(20); // transmit to device #4
-  uint8_t tmpSendToMega = sendToMega.getByte();
   //Serial.print(tmpSendToMega);
   Wire.write(tmpSendToMega); // sends one byte  
   Wire.endTransmission();    // stop transmitting
