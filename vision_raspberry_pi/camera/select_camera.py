@@ -1,7 +1,7 @@
 import gpiod
 from smbus2 import SMBus
 
-chip = gpiod.Chip("gpiochip0")
+chip = gpiod.Chip("/dev/gpiochip0")
 pin17 = chip.get_line(17)  
 pin4  = chip.get_line(4)   
 

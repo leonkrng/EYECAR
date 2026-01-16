@@ -1,4 +1,3 @@
-from warnings import warn
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -16,8 +15,6 @@ from aruco_navigation.align_to_marker import align_to_marker
 from aruco_navigation.movement_base import MovementBase
 from aruco_navigation.movement_pick_and_place import MovementPickAndPlace
 import time
-
-from vision_raspberry_pi.aruco_navigation import marker_model
 
 class ArucoNode(Node):
     def __init__(self):
@@ -70,6 +67,13 @@ class ArucoNode(Node):
                                                               '/camera/frame_processed',
                                                                10)
 
+        self.aligned_publisher = self.create_publisher(Bool,
+                                                       '/ldlidar_node/aligned',
+                                                       10)
+
+        self.publish_aligned_timer = self.create_timer(1, self.publish_aligned_callback)
+
+
         self.front_collision_detected = False
         self.back_collision_detected = False
         self.right_collision_detected = False
@@ -85,70 +89,98 @@ class ArucoNode(Node):
         self.command = None
 
 
-        
+               
     def image_raw_callback(self, msg:Image):
-
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        command = MovementEnum.STOP
 
         (corners, marker_id) = read_marker(frame)
 
-
         if marker_id is not None and corners.any():
-            # Marker detected
-            draw_marker_border(frame, corners, marker_id)
-        
+
             self.current_marker = MarkerModel(corners, marker_id)
 
             if self.last_marker is None:
-                # First marker
+                # First Marker
                 self.last_marker = self.current_marker
 
 
-            if (self.current_marker.marker_id != self.last_marker.marker_id) and (self.movement_routine.current_sub_step == self.movement_routine.SUB_ROUTINE_DONE) or (self.auto_mode == False):
-                # New Marker: reset step and alignment
+        match self.aligned_to_marker:
+            case False:
+                command = self.align_routine(frame)
+            case True:
+                command = self.auto_routine(frame)
+
+        self.publish_data(command, frame)
+
+        if self.auto_mode == False:
+            self.aligned_to_marker = False
+            self.movement_routine.current_sub_step = 0
+
+    
+    def align_routine(self, frame):
+        command = MovementEnum.STOP
+
+        self.publish_data(command, None)
+
+        if self.current_marker is None or self.last_marker is None:
+            return command
+
+        if self.current_marker.marker_id != self.last_marker.marker_id:
+            self.movement_routine.current_sub_step = 0
+
+        command, self.aligned_to_marker = align_to_marker(frame, self.current_marker)
+
+        #collision_detected = self.get_collision_detected()
+        collision_detected = self.collision_in_direction(command)
+
+        if collision_detected:
+            command = MovementEnum.STOP
+
+
+        return command
+
+    def auto_routine(self, frame):
+        command = MovementEnum.STOP
+
+        if self.current_marker is None or self.last_marker is None:
+            return command
+
+        command = self.movement_routine.movement_routine(self.current_marker.marker_id)
+
+        if self.movement_routine.current_sub_step == self.movement_routine.SUB_ROUTINE_DONE:
+            # Routine done: reset
+            print("Routine Done")
+            self.aligned_to_marker = False
+
+            if self.last_marker.marker_id != self.current_marker.marker_id:
                 self.movement_routine.current_sub_step = 0
-                self.aligned_to_marker = False
 
+        self.last_marker = self.current_marker
 
-            if self.aligned_to_marker:
-                pass
-                # Alignment is completed and the workstation-routine should run
-                self.command = self.movement_routine.movement_routine(self.current_marker.marker_id)
+        return command
+    
 
-            else:
-                pass
-                # Alignment is not completed and the alignment-routine should run
-                self.command, self.aligned_to_marker = align_to_marker(frame, self.current_marker)
+    def get_collision_detected(self):
 
-                collision_detected = self.collision_in_direction(self.command)
-
-                if collision_detected:
-                    self.command = MovementEnum.STOP
-
-            # Set current marker ad last marker for the next cycle
-            self.last_marker = self.current_marker
+        if self.front_collision_detected or self.back_collision_detected or self.left_collision_detected or self.right_collision_detected:
+            return True
         else:
-            if self.aligned_to_marker == False:
-                # Marker was lost during the alginment
-                self.command = MovementEnum.STOP
+            return False
 
-        self. publish_data(self.command, frame)
-
-
+    
     # Publish command and processed frame
     def publish_data(self, command, frame):
 
-        if command is not None:
-            msg_command = String()
-            msg_command.data = str(command.value)
+           if command is not None:
+               msg_command = String()
+               msg_command.data = str(command.value)
 
-            self.command_publisher.publish(msg)
+               self.command_publisher.publish(msg_command)
 
-        if frame is not None:
-            msg_frame = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
-            self.frame_processed_publisher.publish(msg_frame)
-
-
+           if frame is not None:
+               msg_frame = self.bridge.cv2_to_imgmsg(frame, encoding="bgr8")
+               self.frame_processed_publisher.publish(msg_frame)
 
 
     def front_collision_callback(self, msg:Bool):
@@ -209,9 +241,14 @@ class ArucoNode(Node):
         return conditions.get(command, False)
 
     def serial_read_callback(self, msg:String):
-        if msg.data == 1:
+        if msg.data == "1":
             self.auto_mode = True
         else:
             self.auto_mode = False
+
+    def publish_aligned_callback(self):
+        msg = Bool()
+        msg.data = self.aligned_to_marker
+        self.aligned_publisher.publish(msg)
 
 

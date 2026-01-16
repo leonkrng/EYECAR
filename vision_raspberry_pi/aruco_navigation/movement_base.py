@@ -9,14 +9,14 @@ class MovementBase:
         self.workstation_distance = 0
 
         # Constans for the duration that the movement needs
-        self.LOWER_GRIPPER_DURATION = 4 * 1000000000
-        self.LIFT_GRIPPER_DURATION = 4 * 1000000000
-        self.CLOSE_GRIPPER_DURATION = 10 * 1000000000
-        self.OPEN_GRIPPER_DURATION = 10 * 1000000000
-        self.RORARE_180_DURATION = 2 * 1000000000
+        self.LOWER_GRIPPER_DURATION = 5 * 1000000000
+        self.LIFT_GRIPPER_DURATION = 5 * 1000000000
+        self.CLOSE_GRIPPER_DURATION = 3 * 1000000000
+        self.OPEN_GRIPPER_DURATION = 3 * 1000000000
+        self.ROTATE_180_DURATION = 3 * 1000000000
  
         # Distance between the lidar and the workstation for gripping the object (in m)
-        self.GRIP_DISTANCE = 0.2
+        self.GRIP_DISTANCE = 0.25
 
     def movement_routine(self, marker_id):
 

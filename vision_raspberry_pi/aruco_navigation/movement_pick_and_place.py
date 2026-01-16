@@ -59,7 +59,7 @@ class MovementPickAndPlace(MovementBase):
                 if self.sub_step_start_time is None:
                     self.sub_step_start_time = time.monotonic_ns()
 
-                if(time.monotonic_ns() - self.sub_step_start_time) > self.OPEN_GRIPPER_DURATION:
+                if(time.monotonic_ns() - self.sub_step_start_time) > self.LIFT_GRIPPER_DURATION:
                     self.current_sub_step = 5
                     self.sub_step_start_time = None
                     return MovementEnum.STOP
@@ -79,11 +79,14 @@ class MovementPickAndPlace(MovementBase):
                 if self.sub_step_start_time is None:
                     self.sub_step_start_time = time.monotonic_ns()
 
-                if(time.monotonic_ns() - self.sub_step_start_time) > self.Rotate_180_DURATION:
+                if(time.monotonic_ns() - self.sub_step_start_time) > self.ROTATE_180_DURATION:
                     self.current_sub_step = self.SUB_ROUTINE_DONE 
                     return MovementEnum.STOP
                 else:
                     return MovementEnum.TURN_RIGHT
+
+            case _: 
+                return MovementEnum.STOP
 
     def marker_2_movement(self):
 
@@ -122,7 +125,7 @@ class MovementPickAndPlace(MovementBase):
 
             case 3:
                 # Backup from workstation
-                if self.workstation_distance > (self.GRIP_DISTANCE + 0.5):
+                if self.workstation_distance > (self.GRIP_DISTANCE + 0.1):
                     self.current_sub_step = 4 
                     return MovementEnum.STOP
                 else:
@@ -133,11 +136,14 @@ class MovementPickAndPlace(MovementBase):
                 if self.sub_step_start_time is None:
                     self.sub_step_start_time = time.monotonic_ns()
 
-                if(time.monotonic_ns() - self.sub_step_start_time) > self.RORARE_180_DURATION:
+                if(time.monotonic_ns() - self.sub_step_start_time) > self.ROTATE_180_DURATION:
                     self.current_sub_step = self.SUB_ROUTINE_DONE 
                     return MovementEnum.STOP
                 else:
                     return MovementEnum.TURN_RIGHT
+            
+            case _:
+                return MovementEnum.STOP
 
     def marker_3_movement(self):
         return MovementEnum.STOP
