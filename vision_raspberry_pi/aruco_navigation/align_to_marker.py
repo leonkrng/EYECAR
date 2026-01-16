@@ -5,9 +5,6 @@ def align_to_marker(frame, current_marker):
 
     is_aligned = False
 
-    if current_marker is None:
-        return MovementEnum.STOP, is_aligned
-
     height, width = frame.shape[:2]
 
     # The span between 40% and 60% off the frame is considered to be the middle
