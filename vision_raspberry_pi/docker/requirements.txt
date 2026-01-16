@@ -2,4 +2,6 @@ numpy
 pyserial
 imutils
 gpiozero
+gpiod
+smbus2
 

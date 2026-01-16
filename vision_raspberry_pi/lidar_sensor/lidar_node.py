@@ -2,12 +2,40 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool
-import bisect
+from std_msgs.msg import Float32
+from itertools import chain
+import math
 
 class LidarNode(Node):
 
     def __init__(self):
         super().__init__('lidar_node')
+
+        # Lidar Zone-Ranges in RAD. Some zones overlap
+        self.FRONT_1_START = 0.0 # 0° 
+        self.FRONT_1_END = 3.142 # 180°
+        self.FRONT_2_START = 6.109 # 350°
+        self.FRONT_2_END = 6.283 # 360°
+
+        self.BACK_START = 3.316 # 190°
+        self.BACK_END = 6.109 # 350°
+
+        self.LEFT_START = 2.967 # 170°
+        self.LEFT_END = 3.491 # 200°
+
+        self.RIGHT_1_START = 0 # 0°
+        self.RIGHT_1_END = 0.3491 # 20°
+        self.RIGHT_2_START = 6.109 # 350°
+        self.RIGHT_2_END = 6.283 # 360°
+
+        # Zone for front distance in RAD. Used for alignment to workstations within collision zones.
+        self.WORKSTATION_START = 1.396 # 80°
+        self.WORKSTATION_END = 1.754 # 100°
+
+        # Collision Thresholds in meter
+        self.FRONT_COLL = 0.40
+        self.BACK_COLL = 0.55
+        self.SIDE_COLL = 0.45
 
         self.lidar_scan_subscriber = self.create_subscription(
             LaserScan,
@@ -15,21 +43,96 @@ class LidarNode(Node):
             self.lidar_scan_callback,
             10)
 
-        self.collision_publisher = self.create_publisher(Bool,
-                                                         '/ldlidar_node/collision',
+        self.collision_publisher_front = self.create_publisher(Bool,
+                                                         '/ldlidar_node/collision_front',
                                                          10)
+        self.collision_publisher_back = self.create_publisher(Bool,
+                                                         '/ldlidar_node/collision_back',
+                                                         10)
+        self.collision_publisher_left = self.create_publisher(Bool,
+                                                         '/ldlidar_node/collision_left',
+                                                         10)
+        self.collision_publisher_right = self.create_publisher(Bool,
+                                                         '/ldlidar_node/collision_right',
+                                                         10)
+        self.workstation_distance_publisher = self.create_publisher(Float32,
+                                                                    '/ldlidar_node/workstation_distance',
+                                                                    10)
 
 
-    def lidar_scan_callback(self, msg: LaserScan):
+    def lidar_scan_callback(self, scan: LaserScan):
 
-        max_distance = min(msg.ranges)
+        # Get the valid ranges of each Lidar-side
+        front_ranges_1 = self.get_valid_ranges(scan.ranges, self.FRONT_1_START, self.FRONT_1_END, scan.angle_min, scan.angle_increment)
+        front_ranges_2 = self.get_valid_ranges(scan.ranges, self.FRONT_1_START, self.FRONT_2_END, scan.angle_min, scan.angle_increment)
+        front_ranges = list(chain(front_ranges_1, front_ranges_2))
 
-        if max_distance <= 0.3:
-            self.get_logger().info(f'Collision detectet: {max_distance} m')
-            msg = Bool()
-            msg.data = True
-            self.collision_publisher.publish(msg)
+        back_ranges = self.get_valid_ranges(scan.ranges, self.BACK_START, self.BACK_END, scan.angle_min, scan.angle_increment)
+
+        left_ranges = self.get_valid_ranges(scan.ranges, self.LEFT_START, self.LEFT_END, scan.angle_min, scan.angle_increment)
+
+        right_ranges_1 = self.get_valid_ranges(scan.ranges, self.RIGHT_1_START, self.RIGHT_1_END, scan.angle_min, scan.angle_increment)
+        right_ranges_2 = self.get_valid_ranges(scan.ranges, self.RIGHT_2_START, self.RIGHT_2_END, scan.angle_min, scan.angle_increment)
+        right_ranges = list(chain(right_ranges_1, right_ranges_2))
 
 
+        coll_msg = Bool()
+        coll_msg.data = False
 
-        
+        # Check collision for each EYECAR-side
+        if (len(front_ranges) != 0) and min(front_ranges) <= self.FRONT_COLL:
+            coll_msg.data = True
+            self.collision_publisher_front.publish(coll_msg)
+        else:
+            coll_msg.data = False
+            self.collision_publisher_front.publish(coll_msg)
+
+        if len(back_ranges) != 0 and min(back_ranges) <= self.BACK_COLL:
+            coll_msg.data = True
+            self.collision_publisher_back.publish(coll_msg)
+        else:
+            coll_msg.data = False
+            self.collision_publisher_back.publish(coll_msg)
+
+        if (len(left_ranges) != 0) and min(left_ranges) <= self.SIDE_COLL:
+            coll_msg.data = True
+            self.collision_publisher_left.publish(coll_msg)
+        else:
+            coll_msg.data = False
+            self.collision_publisher_left.publish(coll_msg)
+
+        if (len(right_ranges) != 0) and min(right_ranges) <= self.SIDE_COLL:
+            coll_msg.data = True
+            self.collision_publisher_right.publish(coll_msg)
+        else:
+            coll_msg.data = False
+            self.collision_publisher_right.publish(coll_msg)
+
+        # Calculate and publish distance to workstation
+        workstation_ranges = self.get_valid_ranges(scan.ranges, self.WORKSTATION_START, self.WORKSTATION_END, scan.angle_min, scan.angle_increment)
+
+        workstation_msg = Float32()
+
+        if len(workstation_ranges) != 0:
+            workstation_msg.data = min(workstation_ranges)
+            self.workstation_distance_publisher.publish(workstation_msg)
+
+    def get_valid_ranges(self, scan_ranges, start, end, angle_min, angle_increment):
+        i_begin = math.ceil((start - angle_min) / angle_increment)
+        i_end   = math.floor((end   - angle_min) / angle_increment)
+
+        # Bounds absichern
+        i_begin = max(0, i_begin)
+        i_end   = min(len(scan_ranges) - 1, i_end)
+
+        if i_end < i_begin:
+            return [], (i_begin, i_end)
+
+        ranges_slice = scan_ranges[i_begin:i_end + 1]
+
+        valid_ranges = [
+            float(r) for r in ranges_slice
+            if math.isfinite(r) and r >= 0.0
+        ]
+
+        return valid_ranges

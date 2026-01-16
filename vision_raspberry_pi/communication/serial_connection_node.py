@@ -8,18 +8,15 @@ class SerialConnectionNode(Node):
     def __init__(self):
         super().__init__('serial_connection')
 
-        if socket.gethostname() != "eye-car-pi":
-            self.ser = serial.serial_for_url('loop://', baudrate = 115200, timeout = 1)
-        else:
-            self.ser = serial.Serial(
-                '/dev/ttyAMA0',
-                baudrate = 115200,
-                bytesize = 8,
-                timeout = 0.05,
-                xonxoff = False,
-                rtscts = False,
-                dsrdtr = False,
-            )
+        self.ser = serial.Serial(
+            '/dev/ttyAMA0',
+            baudrate = 115200,
+            bytesize = 8,
+            timeout = 0.05,
+            xonxoff = False,
+            rtscts = False,
+            dsrdtr = False,
+        )
 
         self.serial_read_publisher = self.create_publisher(String,
                                               '/serial/read',
@@ -38,7 +35,7 @@ class SerialConnectionNode(Node):
 
     def serial_write_callback(self, msg: String):
         try:
-            data = msg.data.encode("utf-8")
+            data = msg.data.encode("utf-8") + b"\n"
             self.ser.write(data)
         except Exception as e:
             self.get_logger().error(f"Serial write failed: {e}")
